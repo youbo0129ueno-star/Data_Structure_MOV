@@ -62,7 +62,8 @@
       justify-content: flex-end;
     }
 
-    button {
+    button,
+    select {
       border: 1px solid var(--line);
       background: #ffffff;
       color: var(--ink);
@@ -72,9 +73,18 @@
       cursor: pointer;
     }
 
-    button:hover {
+    button:hover,
+    select:hover {
       border-color: var(--active);
       color: var(--active);
+    }
+
+    .speed-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 14px;
     }
 
     input[type="range"] {
@@ -218,19 +228,35 @@
     }
   </style>
 </head>
+
 <body>
   <main>
     <header>
       <h1>ch03-bst-search</h1>
+
       <div class="controls" aria-label="再生コントロール">
         <button id="play" type="button">再生</button>
         <button id="restart" type="button">最初へ</button>
+
+        <label class="speed-label">
+          速度
+          <select id="speed" aria-label="再生速度">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1.0x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2.0x</option>
+          </select>
+        </label>
+
         <input id="seek" type="range" min="0" max="7200" value="0" step="20" aria-label="再生位置">
       </div>
     </header>
 
     <section class="stage">
       <svg id="tree" viewBox="0 0 720 420" role="img" aria-label="二分探索木の探索アニメーション"></svg>
+
       <div class="message">
         <p id="label" class="label"></p>
         <p id="note" class="note"></p>
@@ -314,14 +340,19 @@
 
   <script>
     const script = JSON.parse(document.getElementById("framescript").textContent);
+
     const svg = document.getElementById("tree");
     const code = document.getElementById("code");
     const label = document.getElementById("label");
     const note = document.getElementById("note");
+
     const play = document.getElementById("play");
     const restart = document.getElementById("restart");
     const seek = document.getElementById("seek");
+    const speed = document.getElementById("speed");
+
     const nodeEls = new Map();
+
     let startTime = 0;
     let elapsedBeforePlay = 0;
     let raf = 0;
@@ -340,12 +371,14 @@
       for (const [from, to] of script.layout.edges) {
         const a = script.layout.nodes[from];
         const b = script.layout.nodes[to];
+
         const line = svgEl("line");
         line.setAttribute("class", "edge");
         line.setAttribute("x1", a.x);
         line.setAttribute("y1", a.y);
         line.setAttribute("x2", b.x);
         line.setAttribute("y2", b.y);
+
         svg.insertBefore(line, path);
       }
 
@@ -353,18 +386,23 @@
         const group = svgEl("g");
         const circle = svgEl("circle");
         const text = svgEl("text");
+
         group.setAttribute("class", "node");
         group.setAttribute("transform", `translate(${pos.x} ${pos.y})`);
+
         circle.setAttribute("r", 30);
         text.textContent = key;
+
         group.append(circle, text);
         svg.append(group);
+
         nodeEls.set(key, group);
       }
     }
 
     function drawCode() {
       code.innerHTML = "";
+
       script.code.forEach((line) => {
         const span = document.createElement("span");
         span.className = "line";
@@ -374,12 +412,15 @@
     }
 
     function frameAt(ms) {
-      return script.frames.reduce((current, frame) => frame.at <= ms ? frame : current, script.frames[0]);
+      return script.frames.reduce(
+        (current, frame) => frame.at <= ms ? frame : current,
+        script.frames[0]
+      );
     }
 
     function update(ms) {
       const frame = frameAt(ms);
-      const visited = new Set(frame.visited);
+      const visited = new Set(frame.visited || []);
       const active = frame.activeNode;
 
       for (const [key, group] of nodeEls) {
@@ -387,8 +428,14 @@
         group.classList.toggle("active", key === active);
       }
 
-      const points = frame.visited.map((key) => script.layout.nodes[key]);
-      const pathData = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+      const points = (frame.visited || [])
+        .map((key) => script.layout.nodes[key])
+        .filter(Boolean);
+
+      const pathData = points
+        .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+        .join(" ");
+
       document.getElementById("searchPath").setAttribute("d", pathData);
 
       [...code.querySelectorAll(".line")].forEach((line, index) => {
@@ -397,25 +444,40 @@
 
       label.textContent = frame.label;
       note.textContent = frame.note;
-      seek.value = String(ms);
+
+      seek.value = String(Math.round(ms));
     }
 
     function tick(now) {
-      const ms = Math.min(script.durationMs, elapsedBeforePlay + now - startTime);
+      const playbackRate = Number(speed.value);
+
+      const ms = Math.min(
+        script.durationMs,
+        elapsedBeforePlay + (now - startTime) * playbackRate
+      );
+
       update(ms);
+
       if (ms >= script.durationMs) {
         playing = false;
         play.textContent = "再生";
         elapsedBeforePlay = script.durationMs;
         return;
       }
+
       raf = requestAnimationFrame(tick);
     }
 
     function setPlaying(next) {
       playing = next;
       play.textContent = playing ? "一時停止" : "再生";
+
       if (playing) {
+        if (elapsedBeforePlay >= script.durationMs) {
+          elapsedBeforePlay = 0;
+          update(0);
+        }
+
         startTime = performance.now();
         raf = requestAnimationFrame(tick);
       } else {
@@ -424,23 +486,38 @@
       }
     }
 
-    play.addEventListener("click", () => setPlaying(!playing));
+    play.addEventListener("click", () => {
+      setPlaying(!playing);
+    });
+
     restart.addEventListener("click", () => {
       elapsedBeforePlay = 0;
       update(0);
+
       if (playing) {
         startTime = performance.now();
       }
     });
+
     seek.addEventListener("input", () => {
       elapsedBeforePlay = Number(seek.value);
       update(elapsedBeforePlay);
+
+      if (playing) {
+        startTime = performance.now();
+      }
+    });
+
+    speed.addEventListener("change", () => {
+      elapsedBeforePlay = Number(seek.value);
+
       if (playing) {
         startTime = performance.now();
       }
     });
 
     seek.max = String(script.durationMs);
+
     drawTree();
     drawCode();
     update(0);
