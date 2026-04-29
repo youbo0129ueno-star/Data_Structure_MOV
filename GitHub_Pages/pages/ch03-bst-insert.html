@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ch03-bst-insert</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #64748b;
+      --panel: #f8fafc;
+      --line: #cbd5e1;
+      --active: #2563eb;
+      --visited: #16a34a;
+      --insert: #f97316;
+      --nil: #94a3b8;
+      --code: #eef2ff;
+      --warn: #fff7ed;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+      color: var(--ink);
+      background: #ffffff;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(420px, 1.1fr) minmax(320px, 0.9fr);
+      gap: 24px;
+      width: min(1120px, calc(100vw - 32px));
+      margin: 24px auto;
+      align-items: start;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: var(--active);
+      color: var(--active);
+    }
+
+    input[type="range"] {
+      width: 220px;
+    }
+
+    .stage,
+    .side {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .stage {
+      padding: 18px;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      aspect-ratio: 720 / 460;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+
+    .edge {
+      stroke: #94a3b8;
+      stroke-width: 3;
+      stroke-linecap: round;
+    }
+
+    .edge.new-edge {
+      stroke: var(--insert);
+      stroke-width: 5;
+    }
+
+    .node circle {
+      fill: #ffffff;
+      stroke: #94a3b8;
+      stroke-width: 3;
+      transition: fill 180ms ease, stroke 180ms ease, opacity 180ms ease;
+    }
+
+    .node text {
+      font-size: 22px;
+      font-weight: 700;
+      fill: var(--ink);
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .node.ghost circle {
+      fill: #ffffff;
+      stroke: #cbd5e1;
+      stroke-dasharray: 6 6;
+      opacity: 0.75;
+    }
+
+    .node.ghost text {
+      fill: #94a3b8;
+    }
+
+    .node.visited circle {
+      fill: #dcfce7;
+      stroke: var(--visited);
+    }
+
+    .node.active circle {
+      fill: #dbeafe;
+      stroke: var(--active);
+      stroke-width: 5;
+    }
+
+    .node.parent circle {
+      fill: #fef3c7;
+      stroke: #d97706;
+      stroke-width: 5;
+    }
+
+    .node.insert circle {
+      fill: #ffedd5;
+      stroke: var(--insert);
+      stroke-width: 5;
+    }
+
+    .path {
+      fill: none;
+      stroke: var(--active);
+      stroke-width: 6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      opacity: 0.28;
+    }
+
+    .pointer {
+      font-size: 15px;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .pointer-y {
+      fill: #d97706;
+    }
+
+    .pointer-z {
+      fill: var(--active);
+    }
+
+    .pointer-x {
+      fill: var(--insert);
+    }
+
+    .nil-box {
+      fill: #f8fafc;
+      stroke: var(--nil);
+      stroke-width: 2;
+      stroke-dasharray: 5 5;
+      rx: 6;
+    }
+
+    .nil-text {
+      font-size: 15px;
+      font-weight: 700;
+      fill: var(--nil);
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .message {
+      margin-top: 14px;
+      min-height: 108px;
+      padding: 14px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+
+    .label {
+      margin: 0 0 8px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .note {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .vars {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .var {
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 14px;
+    }
+
+    .var strong {
+      display: inline-block;
+      min-width: 1.5em;
+    }
+
+    .side {
+      padding: 16px;
+    }
+
+    pre {
+      margin: 0;
+      overflow-x: auto;
+      font-size: 14px;
+      line-height: 1.6;
+      counter-reset: line;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    .line {
+      display: block;
+      min-height: 22px;
+      padding: 0 8px;
+      border-left: 3px solid transparent;
+      white-space: pre;
+    }
+
+    .line::before {
+      counter-increment: line;
+      content: counter(line);
+      display: inline-block;
+      width: 2ch;
+      margin-right: 16px;
+      color: #94a3b8;
+      text-align: right;
+    }
+
+    .line.active {
+      background: var(--code);
+      border-left-color: var(--active);
+    }
+
+    @media (max-width: 820px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .controls {
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>ch03-bst-insert</h1>
+      <div class="controls" aria-label="再生コントロール">
+        <button id="play" type="button">再生</button>
+        <button id="restart" type="button">最初へ</button>
+        <input id="seek" type="range" min="0" max="10400" value="0" step="20" aria-label="再生位置">
+      </div>
+    </header>
+
+    <section class="stage">
+      <svg id="tree" viewBox="0 0 720 460" role="img" aria-label="二分探索木への挿入アニメーション"></svg>
+
+      <div class="message">
+        <p id="label" class="label"></p>
+        <p id="note" class="note"></p>
+        <div class="vars" aria-label="変数の状態">
+          <div class="var"><strong>x</strong> = <span id="varX"></span></div>
+          <div class="var"><strong>y</strong> = <span id="varY"></span></div>
+          <div class="var"><strong>z</strong> = <span id="varZ"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <pre><code id="code"></code></pre>
+    </aside>
+  </main>
+
+  <script id="framescript" type="application/json">
+{
+  "title": "ch03-bst-insert",
+  "durationMs": 10400,
+  "insertKey": "6",
+  "layout": {
+    "nodes": {
+      "7": {"x": 360, "y": 90},
+      "4": {"x": 220, "y": 200},
+      "9": {"x": 500, "y": 200},
+      "2": {"x": 140, "y": 320},
+      "5": {"x": 300, "y": 320},
+      "8": {"x": 440, "y": 320},
+      "16": {"x": 580, "y": 320},
+      "6": {"x": 340, "y": 420}
+    },
+    "edges": [["7", "4"], ["7", "9"], ["4", "2"], ["4", "5"], ["9", "8"], ["9", "16"]],
+    "newEdge": ["5", "6"]
+  },
+  "code": [
+    "Tree-Insert(T, x)",
+    "    y = NIL",
+    "    z = root[T]",
+    "    while z != NIL do",
+    "        y = z",
+    "        if key[x] < key[z] then",
+    "            z = left[z]",
+    "        else",
+    "            z = right[z]",
+    "",
+    "    parent[x] = y",
+    "    if y == NIL then",
+    "        root[T] = x",
+    "    else if key[x] < key[y] then",
+    "        left[y] = x",
+    "    else",
+    "        right[y] = x",
+    "    return root[T]"
+  ],
+  "frames": [
+    {
+      "at": 0,
+      "visibleInsert": false,
+      "connected": false,
+      "activeNode": null,
+      "parentNode": null,
+      "visited": [],
+      "path": [],
+      "nil": false,
+      "vars": {"x": "6", "y": "未設定", "z": "未設定"},
+      "codeLines": [0],
+      "label": "x = 6 を二分探索木へ挿入する",
+      "note": "挿入では，まず x を入れる場所を探索する．探索中は y が z の直前の親候補を覚える．"
+    },
+    {
+      "at": 900,
+      "visibleInsert": false,
+      "connected": false,
+      "activeNode": null,
+      "parentNode": null,
+      "visited": [],
+      "path": [],
+      "nil": false,
+      "vars": {"x": "6", "y": "NIL", "z": "未設定"},
+      "codeLines": [1],
+      "label": "y = NIL",
+      "note": "y は親候補を表す変数である．まだ根にも到達していないので NIL にしておく．"
+    },
+    {
+      "at": 1800,
+      "visibleInsert": false,
+      "connected": false,
+      "activeNode": "7",
+      "parentNode": null,
+      "visited": ["7"],
+      "path": ["7"],
+      "nil": false,
+      "vars": {"x": "6", "y": "NIL", "z": "7"},
+      "codeLines": [2, 3],
+      "label": "z = root[T] = 7",
+      "note": "z は現在見ている頂点を表す．根から下に向かって，x = 6 を入れる位置を探す．"
+    },
+    {
+      "at": 3000,
+      "visibleInsert": false,
+      "connected": false,
+      "activeNode": "7",
+      "parentNode": "7",
+      "visited": ["7"],
+      "path": ["7"],
+      "nil": false,
+      "vars": {"x": "6", "y": "7", "z": "7"},
+      "codeLines": [4, 5, 6],
+      "label": "y = z, 6 < 7 なので左へ進む",
+      "note": "z が NIL でないので while 内に入る．現在の z = 7 を y に保存し，次に left[7] を調べる．"
+    },
+    {
+      "at": 4200,
+      "visibleInsert": false,
+      "connected": false,
+      "activeNode": "4",
+      "parentNode": "7",
+      "visited": ["7", "4"],
+      "path": ["7", "4"],
+      "nil": false,
+      "vars": {"x": "6", "y": "7", "z": "4"},
+      "codeLines": [3],
+      "label": "z = 4",
+      "note": "左の子へ移動した．z が NIL ではないので，さらに比較を続ける．"
+    },
+    {
+      "at": 5400,
+      "visibleInsert": false,
+      "connected": false,
+      "activeNode": "4",
+      "parentNode": "4",
+      "visited": ["7", "4"],
+      "path": ["7", "4"],
+      "nil": false,
+      "vars": {"x": "6", "y": "4", "z": "4"},
+      "codeLines": [4, 5, 7, 8],
+      "label": "y = z, 6 > 4 なので右へ進む",
+      "note": "今度は key[x] < key[z] が偽である．したがって z = right[4] として右へ進む．"
+    },
+    {
+      "at": 6600,
+      "visibleInsert": false,
+      "connected": false,
+      "activeNode": "5",
+      "parentNode": "4",
+      "visited": ["7", "4", "5"],
+      "path": ["7", "4", "5"],
+      "nil": false,
+      "vars": {"x": "6", "y": "4", "z": "5"},
+      "codeLines": [3],
+      "label": "z = 5",
+      "note": "right[4] に移動した．z が NIL ではないので，もう一度比較する．"
+    },
+    {
+      "at": 7800,
+      "visibleInsert": false,
+      "connected": false,
+      "activeNode": "5",
+      "parentNode": "5",
+      "visited": ["7", "4", "5"],
+      "path": ["7", "4", "5"],
+      "nil": true,
+      "nilAt": {"x": 390, "y": 390},
+      "vars": {"x": "6", "y": "5", "z": "5"},
+      "codeLines": [4, 5, 7, 8],
+      "label": "y = z, 6 > 5 なので右へ進む",
+      "note": "5 の右部分木へ進む．この場所が空なら，x = 6 は 5 の右の子として挿入される．"
+    },
+    {
+      "at": 8800,
+      "visibleInsert": false,
+      "connected": false,
+      "activeNode": null,
+      "parentNode": "5",
+      "visited": ["7", "4", "5"],
+      "path": ["7", "4", "5"],
+      "nil": true,
+      "nilAt": {"x": 390, "y": 390},
+      "vars": {"x": "6", "y": "5", "z": "NIL"},
+      "codeLines": [3],
+      "label": "z = NIL になったので while を抜ける",
+      "note": "探索が空の子に到達した．最後に y = 5 が，x の親になる頂点として残っている．"
+    },
+    {
+      "at": 9400,
+      "visibleInsert": true,
+      "connected": false,
+      "activeNode": null,
+      "parentNode": "5",
+      "insertNode": "6",
+      "visited": ["7", "4", "5"],
+      "path": ["7", "4", "5"],
+      "nil": false,
+      "vars": {"x": "6", "y": "5", "z": "NIL"},
+      "codeLines": [10, 11, 13, 15, 16],
+      "label": "parent[x] = y",
+      "note": "x の親を y に設定する．y は NIL ではなく，6 > 5 なので right[5] = x として接続する．"
+    },
+    {
+      "at": 10000,
+      "visibleInsert": true,
+      "connected": true,
+      "activeNode": null,
+      "parentNode": "5",
+      "insertNode": "6",
+      "visited": ["7", "4", "5", "6"],
+      "path": ["7", "4", "5", "6"],
+      "nil": false,
+      "vars": {"x": "6", "y": "5", "z": "NIL"},
+      "codeLines": [16, 17],
+      "label": "right[5] = x, return root[T]",
+      "note": "6 が 5 の右の子として挿入された．根は変わらないので root[T] = 7 を返す．"
+    }
+  ]
+}
+  </script>
+
+  <script>
+    const script = JSON.parse(document.getElementById("framescript").textContent);
+    const svg = document.getElementById("tree");
+    const code = document.getElementById("code");
+    const label = document.getElementById("label");
+    const note = document.getElementById("note");
+    const varX = document.getElementById("varX");
+    const varY = document.getElementById("varY");
+    const varZ = document.getElementById("varZ");
+    const play = document.getElementById("play");
+    const restart = document.getElementById("restart");
+    const seek = document.getElementById("seek");
+    const nodeEls = new Map();
+    const edgeEls = new Map();
+    let startTime = 0;
+    let elapsedBeforePlay = 0;
+    let raf = 0;
+    let playing = false;
+
+    function svgEl(name) {
+      return document.createElementNS("http://www.w3.org/2000/svg", name);
+    }
+
+    function edgeKey(from, to) {
+      return `${from}->${to}`;
+    }
+
+    function drawTree() {
+      const path = svgEl("path");
+      path.setAttribute("id", "searchPath");
+      path.setAttribute("class", "path");
+      svg.append(path);
+
+      for (const [from, to] of script.layout.edges) {
+        const a = script.layout.nodes[from];
+        const b = script.layout.nodes[to];
+        const line = svgEl("line");
+        line.setAttribute("class", "edge");
+        line.setAttribute("x1", a.x);
+        line.setAttribute("y1", a.y);
+        line.setAttribute("x2", b.x);
+        line.setAttribute("y2", b.y);
+        svg.insertBefore(line, path);
+        edgeEls.set(edgeKey(from, to), line);
+      }
+
+      const [newFrom, newTo] = script.layout.newEdge;
+      const a = script.layout.nodes[newFrom];
+      const b = script.layout.nodes[newTo];
+      const newLine = svgEl("line");
+      newLine.setAttribute("id", "newEdge");
+      newLine.setAttribute("class", "edge new-edge");
+      newLine.setAttribute("x1", a.x);
+      newLine.setAttribute("y1", a.y);
+      newLine.setAttribute("x2", b.x);
+      newLine.setAttribute("y2", b.y);
+      newLine.style.display = "none";
+      svg.insertBefore(newLine, path);
+
+      const nilGroup = svgEl("g");
+      nilGroup.setAttribute("id", "nilMarker");
+      nilGroup.style.display = "none";
+      const nilRect = svgEl("rect");
+      const nilText = svgEl("text");
+      nilRect.setAttribute("class", "nil-box");
+      nilRect.setAttribute("x", -28);
+      nilRect.setAttribute("y", -16);
+      nilRect.setAttribute("width", 56);
+      nilRect.setAttribute("height", 32);
+      nilText.setAttribute("class", "nil-text");
+      nilText.textContent = "NIL";
+      nilGroup.append(nilRect, nilText);
+      svg.append(nilGroup);
+
+      for (const [key, pos] of Object.entries(script.layout.nodes)) {
+        const group = svgEl("g");
+        const circle = svgEl("circle");
+        const text = svgEl("text");
+        group.setAttribute("class", key === script.insertKey ? "node ghost" : "node");
+        group.setAttribute("transform", `translate(${pos.x} ${pos.y})`);
+        if (key === script.insertKey) {
+          group.style.display = "none";
+        }
+        circle.setAttribute("r", 30);
+        text.textContent = key;
+        group.append(circle, text);
+        svg.append(group);
+        nodeEls.set(key, group);
+      }
+
+      const pointerLayer = svgEl("g");
+      pointerLayer.setAttribute("id", "pointerLayer");
+      svg.append(pointerLayer);
+    }
+
+    function drawCode() {
+      code.innerHTML = "";
+      script.code.forEach((line) => {
+        const span = document.createElement("span");
+        span.className = "line";
+        span.textContent = line;
+        code.append(span);
+      });
+    }
+
+    function frameAt(ms) {
+      return script.frames.reduce((current, frame) => frame.at <= ms ? frame : current, script.frames[0]);
+    }
+
+    function drawPointer(name, nodeKey, className, offsetY) {
+      if (!nodeKey || nodeKey === "NIL" || !script.layout.nodes[nodeKey]) return;
+      const point = script.layout.nodes[nodeKey];
+      const text = svgEl("text");
+      text.setAttribute("class", `pointer ${className}`);
+      text.setAttribute("x", point.x);
+      text.setAttribute("y", point.y + offsetY);
+      text.textContent = name;
+      document.getElementById("pointerLayer").append(text);
+    }
+
+    function update(ms) {
+      const frame = frameAt(ms);
+      const visited = new Set(frame.visited || []);
+      const active = frame.activeNode;
+      const parent = frame.parentNode;
+      const insert = frame.insertNode;
+
+      for (const [key, group] of nodeEls) {
+        const isInsert = key === script.insertKey;
+        group.style.display = isInsert && !frame.visibleInsert ? "none" : "";
+        group.classList.toggle("ghost", isInsert && !frame.connected);
+        group.classList.toggle("visited", visited.has(key));
+        group.classList.toggle("active", key === active);
+        group.classList.toggle("parent", key === parent);
+        group.classList.toggle("insert", key === insert);
+      }
+
+      document.getElementById("newEdge").style.display = frame.connected ? "" : "none";
+
+      const nilMarker = document.getElementById("nilMarker");
+      if (frame.nil) {
+        const pos = frame.nilAt || {x: 390, y: 390};
+        nilMarker.style.display = "";
+        nilMarker.setAttribute("transform", `translate(${pos.x} ${pos.y})`);
+      } else {
+        nilMarker.style.display = "none";
+      }
+
+      const pathKeys = frame.path || [];
+      const points = pathKeys.map((key) => script.layout.nodes[key]).filter(Boolean);
+      const pathData = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+      document.getElementById("searchPath").setAttribute("d", pathData);
+
+      [...code.querySelectorAll(".line")].forEach((line, index) => {
+        line.classList.toggle("active", frame.codeLines.includes(index));
+      });
+
+      const pointerLayer = document.getElementById("pointerLayer");
+      pointerLayer.innerHTML = "";
+      drawPointer("z", frame.vars.z, "pointer-z", -44);
+      drawPointer("y", frame.vars.y, "pointer-y", 44);
+      if (frame.visibleInsert) {
+        drawPointer("x", script.insertKey, "pointer-x", 44);
+      }
+
+      label.textContent = frame.label;
+      note.textContent = frame.note;
+      varX.textContent = frame.vars.x;
+      varY.textContent = frame.vars.y;
+      varZ.textContent = frame.vars.z;
+      seek.value = String(ms);
+    }
+
+    function tick(now) {
+      const ms = Math.min(script.durationMs, elapsedBeforePlay + now - startTime);
+      update(ms);
+      if (ms >= script.durationMs) {
+        playing = false;
+        play.textContent = "再生";
+        elapsedBeforePlay = script.durationMs;
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    }
+
+    function setPlaying(next) {
+      playing = next;
+      play.textContent = playing ? "一時停止" : "再生";
+      if (playing) {
+        if (elapsedBeforePlay >= script.durationMs) {
+          elapsedBeforePlay = 0;
+        }
+        startTime = performance.now();
+        raf = requestAnimationFrame(tick);
+      } else {
+        cancelAnimationFrame(raf);
+        elapsedBeforePlay = Number(seek.value);
+      }
+    }
+
+    play.addEventListener("click", () => setPlaying(!playing));
+
+    restart.addEventListener("click", () => {
+      elapsedBeforePlay = 0;
+      update(0);
+      if (playing) {
+        startTime = performance.now();
+      }
+    });
+
+    seek.addEventListener("input", () => {
+      elapsedBeforePlay = Number(seek.value);
+      update(elapsedBeforePlay);
+      if (playing) {
+        startTime = performance.now();
+      }
+    });
+
+    seek.max = String(script.durationMs);
+    drawTree();
+    drawCode();
+    update(0);
+  </script>
+</body>
+</html>
