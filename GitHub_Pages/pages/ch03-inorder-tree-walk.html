@@ -1,0 +1,832 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ch03-inorder-tree-walk</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #64748b;
+      --panel: #f8fafc;
+      --line: #cbd5e1;
+      --active: #2563eb;
+      --visited: #16a34a;
+      --printed: #f97316;
+      --nil: #94a3b8;
+      --code: #eef2ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+      color: var(--ink);
+      background: #ffffff;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(420px, 1.1fr) minmax(320px, 0.9fr);
+      gap: 24px;
+      width: min(1120px, calc(100vw - 32px));
+      margin: 24px auto;
+      align-items: start;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.25;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    button,
+    select {
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button:hover,
+    select:hover {
+      border-color: var(--active);
+      color: var(--active);
+    }
+
+    .speed-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    input[type="range"] {
+      width: 220px;
+    }
+
+    .stage,
+    .side {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .stage {
+      padding: 18px;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      aspect-ratio: 720 / 420;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+
+    .edge {
+      stroke: #94a3b8;
+      stroke-width: 3;
+      stroke-linecap: round;
+    }
+
+    .edge.active-edge {
+      stroke: var(--active);
+      stroke-width: 5;
+      opacity: 0.75;
+    }
+
+    .node circle {
+      fill: #ffffff;
+      stroke: #94a3b8;
+      stroke-width: 3;
+      transition: fill 180ms ease, stroke 180ms ease;
+    }
+
+    .node text {
+      font-size: 22px;
+      font-weight: 700;
+      fill: var(--ink);
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .node.seen circle {
+      fill: #dcfce7;
+      stroke: var(--visited);
+    }
+
+    .node.active circle {
+      fill: #dbeafe;
+      stroke: var(--active);
+      stroke-width: 5;
+    }
+
+    .node.printed circle {
+      fill: #ffedd5;
+      stroke: var(--printed);
+      stroke-width: 5;
+    }
+
+    .nil-box {
+      fill: #f8fafc;
+      stroke: var(--nil);
+      stroke-width: 2;
+      stroke-dasharray: 5 5;
+      rx: 6;
+    }
+
+    .nil-text {
+      font-size: 15px;
+      font-weight: 700;
+      fill: var(--nil);
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .pointer {
+      font-size: 15px;
+      font-weight: 700;
+      fill: var(--active);
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .message {
+      margin-top: 14px;
+      min-height: 132px;
+      padding: 14px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+
+    .label {
+      margin: 0 0 8px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .note {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .runtime {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .runtime-box {
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .runtime-box strong {
+      color: var(--ink);
+    }
+
+    .side {
+      padding: 16px;
+    }
+
+    pre {
+      margin: 0;
+      overflow-x: auto;
+      font-size: 14px;
+      line-height: 1.6;
+      counter-reset: line;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    .line {
+      display: block;
+      min-height: 22px;
+      padding: 0 8px;
+      border-left: 3px solid transparent;
+      white-space: pre;
+    }
+
+    .line::before {
+      counter-increment: line;
+      content: counter(line);
+      display: inline-block;
+      width: 2ch;
+      margin-right: 16px;
+      color: #94a3b8;
+      text-align: right;
+    }
+
+    .line.active {
+      background: var(--code);
+      border-left-color: var(--active);
+    }
+
+    @media (max-width: 820px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .controls {
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <header>
+      <h1>ch03-inorder-tree-walk</h1>
+
+      <div class="controls" aria-label="再生コントロール">
+        <button id="play" type="button">再生</button>
+        <button id="restart" type="button">最初へ</button>
+
+        <label class="speed-label">
+          速度
+          <select id="speed" aria-label="再生速度">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1.0x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2.0x</option>
+          </select>
+        </label>
+
+        <input id="seek" type="range" min="0" max="17000" value="0" step="20" aria-label="再生位置">
+      </div>
+    </header>
+
+    <section class="stage">
+      <svg id="tree" viewBox="0 0 720 420" role="img" aria-label="二分探索木の中間順巡回アニメーション"></svg>
+
+      <div class="message">
+        <p id="label" class="label"></p>
+        <p id="note" class="note"></p>
+
+        <div class="runtime">
+          <div class="runtime-box"><strong>call stack:</strong> <span id="stack"></span></div>
+          <div class="runtime-box"><strong>output:</strong> <span id="output"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <pre><code id="code"></code></pre>
+    </aside>
+  </main>
+
+  <script id="framescript" type="application/json">
+{
+  "title": "ch03-inorder-tree-walk",
+  "durationMs": 17000,
+  "layout": {
+    "nodes": {
+      "7": {"x": 360, "y": 90},
+      "4": {"x": 220, "y": 200},
+      "9": {"x": 500, "y": 200},
+      "2": {"x": 140, "y": 310},
+      "5": {"x": 300, "y": 310},
+      "8": {"x": 440, "y": 310},
+      "16": {"x": 580, "y": 310}
+    },
+    "edges": [["7", "4"], ["7", "9"], ["4", "2"], ["4", "5"], ["9", "8"], ["9", "16"]]
+  },
+  "code": [
+    "Inorder-Tree-Walk(x)",
+    "    if x != NIL then",
+    "        Inorder-Tree-Walk(left[x])",
+    "        print key[x]",
+    "        Inorder-Tree-Walk(right[x])"
+  ],
+  "frames": [
+    {
+      "at": 0,
+      "activeNode": "7",
+      "seen": ["7"],
+      "printed": [],
+      "activeEdge": null,
+      "nil": false,
+      "stack": ["Walk(7)"],
+      "output": [],
+      "codeLines": [0, 1],
+      "label": "Inorder-Tree-Walk(root) を呼び出す",
+      "note": "中間順巡回では，左部分木を巡回してから自分を出力し，最後に右部分木を巡回する．"
+    },
+    {
+      "at": 1000,
+      "activeNode": "7",
+      "seen": ["7"],
+      "printed": [],
+      "activeEdge": ["7", "4"],
+      "nil": false,
+      "stack": ["Walk(7)"],
+      "output": [],
+      "codeLines": [2],
+      "label": "まず left[7] へ再帰する",
+      "note": "7 をすぐには出力しない．左部分木をすべて処理してから 7 を出力する．"
+    },
+    {
+      "at": 2200,
+      "activeNode": "4",
+      "seen": ["7", "4"],
+      "printed": [],
+      "activeEdge": ["4", "2"],
+      "nil": false,
+      "stack": ["Walk(7)", "Walk(4)"],
+      "output": [],
+      "codeLines": [0, 1, 2],
+      "label": "Walk(4) に入る",
+      "note": "4 でも同じ規則を使う．まず左の子 2 へ進む．"
+    },
+    {
+      "at": 3400,
+      "activeNode": "2",
+      "seen": ["7", "4", "2"],
+      "printed": [],
+      "activeEdge": null,
+      "nil": false,
+      "stack": ["Walk(7)", "Walk(4)", "Walk(2)"],
+      "output": [],
+      "codeLines": [0, 1, 2],
+      "label": "Walk(2) に入る",
+      "note": "2 の左の子を調べる．left[2] は NIL なので，その呼び出しはすぐに戻る．"
+    },
+    {
+      "at": 4600,
+      "activeNode": "2",
+      "seen": ["7", "4", "2"],
+      "printed": [],
+      "activeEdge": null,
+      "nil": true,
+      "nilAt": {"x": 90, "y": 370},
+      "stack": ["Walk(7)", "Walk(4)", "Walk(2)", "Walk(NIL)"],
+      "output": [],
+      "codeLines": [1],
+      "label": "left[2] = NIL",
+      "note": "x = NIL のとき，if x != NIL が偽になるため，何もせずに呼び出し元へ戻る．"
+    },
+    {
+      "at": 5600,
+      "activeNode": "2",
+      "seen": ["7", "4", "2"],
+      "printed": ["2"],
+      "activeEdge": null,
+      "nil": false,
+      "stack": ["Walk(7)", "Walk(4)", "Walk(2)"],
+      "output": ["2"],
+      "codeLines": [3],
+      "label": "print key[2]",
+      "note": "左部分木の処理が終わったので，現在の頂点 2 を出力する．"
+    },
+    {
+      "at": 6600,
+      "activeNode": "2",
+      "seen": ["7", "4", "2"],
+      "printed": ["2"],
+      "activeEdge": null,
+      "nil": true,
+      "nilAt": {"x": 190, "y": 370},
+      "stack": ["Walk(7)", "Walk(4)", "Walk(2)", "Walk(NIL)"],
+      "output": ["2"],
+      "codeLines": [4, 1],
+      "label": "right[2] = NIL",
+      "note": "右の子も NIL なので，Walk(2) は完了し，Walk(4) に戻る．"
+    },
+    {
+      "at": 7600,
+      "activeNode": "4",
+      "seen": ["7", "4", "2"],
+      "printed": ["2", "4"],
+      "activeEdge": null,
+      "nil": false,
+      "stack": ["Walk(7)", "Walk(4)"],
+      "output": ["2", "4"],
+      "codeLines": [3],
+      "label": "print key[4]",
+      "note": "4 の左部分木は処理済みである．したがって 4 を出力する．"
+    },
+    {
+      "at": 8600,
+      "activeNode": "5",
+      "seen": ["7", "4", "2", "5"],
+      "printed": ["2", "4"],
+      "activeEdge": ["4", "5"],
+      "nil": false,
+      "stack": ["Walk(7)", "Walk(4)", "Walk(5)"],
+      "output": ["2", "4"],
+      "codeLines": [4, 0, 1],
+      "label": "right[4] へ再帰して Walk(5)",
+      "note": "4 の出力後，右部分木に進む．5 は葉なので，左 NIL，出力，右 NIL の順で終わる．"
+    },
+    {
+      "at": 9600,
+      "activeNode": "5",
+      "seen": ["7", "4", "2", "5"],
+      "printed": ["2", "4", "5"],
+      "activeEdge": null,
+      "nil": false,
+      "stack": ["Walk(7)", "Walk(4)", "Walk(5)"],
+      "output": ["2", "4", "5"],
+      "codeLines": [3],
+      "label": "print key[5]",
+      "note": "5 の左部分木は空なので，5 を出力する．"
+    },
+    {
+      "at": 10600,
+      "activeNode": "7",
+      "seen": ["7", "4", "2", "5"],
+      "printed": ["2", "4", "5", "7"],
+      "activeEdge": null,
+      "nil": false,
+      "stack": ["Walk(7)"],
+      "output": ["2", "4", "5", "7"],
+      "codeLines": [3],
+      "label": "print key[7]",
+      "note": "7 の左部分木全体の巡回が完了した．ここで根 7 を出力する．"
+    },
+    {
+      "at": 11600,
+      "activeNode": "9",
+      "seen": ["7", "4", "2", "5", "9"],
+      "printed": ["2", "4", "5", "7"],
+      "activeEdge": ["7", "9"],
+      "nil": false,
+      "stack": ["Walk(7)", "Walk(9)"],
+      "output": ["2", "4", "5", "7"],
+      "codeLines": [4, 0, 1, 2],
+      "label": "right[7] へ再帰して Walk(9)",
+      "note": "根の出力後，右部分木を中間順で巡回する．9 でも，まず左の子 8 に進む．"
+    },
+    {
+      "at": 12600,
+      "activeNode": "8",
+      "seen": ["7", "4", "2", "5", "9", "8"],
+      "printed": ["2", "4", "5", "7"],
+      "activeEdge": ["9", "8"],
+      "nil": false,
+      "stack": ["Walk(7)", "Walk(9)", "Walk(8)"],
+      "output": ["2", "4", "5", "7"],
+      "codeLines": [0, 1, 2],
+      "label": "Walk(8) に入る",
+      "note": "9 の左部分木にある 8 を処理する．左が空なので，次に 8 を出力する．"
+    },
+    {
+      "at": 13600,
+      "activeNode": "8",
+      "seen": ["7", "4", "2", "5", "9", "8"],
+      "printed": ["2", "4", "5", "7", "8"],
+      "activeEdge": null,
+      "nil": false,
+      "stack": ["Walk(7)", "Walk(9)", "Walk(8)"],
+      "output": ["2", "4", "5", "7", "8"],
+      "codeLines": [3],
+      "label": "print key[8]",
+      "note": "8 の左部分木の処理が終わったので，8 を出力する．"
+    },
+    {
+      "at": 14600,
+      "activeNode": "9",
+      "seen": ["7", "4", "2", "5", "9", "8"],
+      "printed": ["2", "4", "5", "7", "8", "9"],
+      "activeEdge": null,
+      "nil": false,
+      "stack": ["Walk(7)", "Walk(9)"],
+      "output": ["2", "4", "5", "7", "8", "9"],
+      "codeLines": [3],
+      "label": "print key[9]",
+      "note": "9 の左部分木が処理済みなので，9 を出力する．"
+    },
+    {
+      "at": 15600,
+      "activeNode": "16",
+      "seen": ["7", "4", "2", "5", "9", "8", "16"],
+      "printed": ["2", "4", "5", "7", "8", "9"],
+      "activeEdge": ["9", "16"],
+      "nil": false,
+      "stack": ["Walk(7)", "Walk(9)", "Walk(16)"],
+      "output": ["2", "4", "5", "7", "8", "9"],
+      "codeLines": [4, 0, 1],
+      "label": "right[9] へ再帰して Walk(16)",
+      "note": "最後に 9 の右部分木を処理する．16 は葉なので，そのまま出力まで進む．"
+    },
+    {
+      "at": 16400,
+      "activeNode": "16",
+      "seen": ["7", "4", "2", "5", "9", "8", "16"],
+      "printed": ["2", "4", "5", "7", "8", "9", "16"],
+      "activeEdge": null,
+      "nil": false,
+      "stack": ["Walk(7)", "Walk(9)", "Walk(16)"],
+      "output": ["2", "4", "5", "7", "8", "9", "16"],
+      "codeLines": [3],
+      "label": "print key[16]",
+      "note": "16 を出力する．これで全ての頂点が昇順に出力された．"
+    },
+    {
+      "at": 17000,
+      "activeNode": null,
+      "seen": ["7", "4", "2", "5", "9", "8", "16"],
+      "printed": ["2", "4", "5", "7", "8", "9", "16"],
+      "activeEdge": null,
+      "nil": false,
+      "stack": [],
+      "output": ["2", "4", "5", "7", "8", "9", "16"],
+      "codeLines": [],
+      "label": "巡回完了",
+      "note": "二分探索木を中間順で巡回すると，キーは小さい順に出力される．"
+    }
+  ]
+}
+  </script>
+
+  <script>
+    const script = JSON.parse(document.getElementById("framescript").textContent);
+
+    const svg = document.getElementById("tree");
+    const code = document.getElementById("code");
+    const label = document.getElementById("label");
+    const note = document.getElementById("note");
+    const stack = document.getElementById("stack");
+    const output = document.getElementById("output");
+
+    const play = document.getElementById("play");
+    const restart = document.getElementById("restart");
+    const seek = document.getElementById("seek");
+    const speed = document.getElementById("speed");
+
+    const nodeEls = new Map();
+    const edgeEls = new Map();
+
+    let startTime = 0;
+    let elapsedBeforePlay = 0;
+    let raf = 0;
+    let playing = false;
+
+    function svgEl(name) {
+      return document.createElementNS("http://www.w3.org/2000/svg", name);
+    }
+
+    function edgeKey(from, to) {
+      return `${from}->${to}`;
+    }
+
+    function drawTree() {
+      const nilGroup = svgEl("g");
+      nilGroup.setAttribute("id", "nilMarker");
+      nilGroup.style.display = "none";
+
+      const nilRect = svgEl("rect");
+      nilRect.setAttribute("class", "nil-box");
+      nilRect.setAttribute("x", -28);
+      nilRect.setAttribute("y", -16);
+      nilRect.setAttribute("width", 56);
+      nilRect.setAttribute("height", 32);
+
+      const nilText = svgEl("text");
+      nilText.setAttribute("class", "nil-text");
+      nilText.textContent = "NIL";
+
+      nilGroup.append(nilRect, nilText);
+
+      for (const [from, to] of script.layout.edges) {
+        const a = script.layout.nodes[from];
+        const b = script.layout.nodes[to];
+
+        const line = svgEl("line");
+        line.setAttribute("class", "edge");
+        line.setAttribute("x1", a.x);
+        line.setAttribute("y1", a.y);
+        line.setAttribute("x2", b.x);
+        line.setAttribute("y2", b.y);
+
+        svg.append(line);
+        edgeEls.set(edgeKey(from, to), line);
+      }
+
+      svg.append(nilGroup);
+
+      for (const [key, pos] of Object.entries(script.layout.nodes)) {
+        const group = svgEl("g");
+        const circle = svgEl("circle");
+        const text = svgEl("text");
+
+        group.setAttribute("class", "node");
+        group.setAttribute("transform", `translate(${pos.x} ${pos.y})`);
+
+        circle.setAttribute("r", 30);
+        text.textContent = key;
+
+        group.append(circle, text);
+        svg.append(group);
+
+        nodeEls.set(key, group);
+      }
+
+      const pointerLayer = svgEl("g");
+      pointerLayer.setAttribute("id", "pointerLayer");
+      svg.append(pointerLayer);
+    }
+
+    function drawCode() {
+      code.innerHTML = "";
+
+      script.code.forEach((line) => {
+        const span = document.createElement("span");
+        span.className = "line";
+        span.textContent = line;
+        code.append(span);
+      });
+    }
+
+    function frameAt(ms) {
+      return script.frames.reduce(
+        (current, frame) => frame.at <= ms ? frame : current,
+        script.frames[0]
+      );
+    }
+
+    function normalizeEdge(edge) {
+      if (!edge) return null;
+      return edgeKey(edge[0], edge[1]);
+    }
+
+    function drawPointer(nodeKey) {
+      if (!nodeKey || nodeKey === "NIL" || !script.layout.nodes[nodeKey]) {
+        return;
+      }
+
+      const point = script.layout.nodes[nodeKey];
+      const text = svgEl("text");
+
+      text.setAttribute("class", "pointer");
+      text.setAttribute("x", point.x);
+      text.setAttribute("y", point.y - 44);
+      text.textContent = "x";
+
+      document.getElementById("pointerLayer").append(text);
+    }
+
+    function update(ms) {
+      const frame = frameAt(ms);
+      const seen = new Set(frame.seen || []);
+      const printed = new Set(frame.printed || []);
+      const activeEdge = normalizeEdge(frame.activeEdge);
+
+      for (const [key, group] of nodeEls) {
+        group.classList.toggle("seen", seen.has(key));
+        group.classList.toggle("printed", printed.has(key));
+        group.classList.toggle("active", key === frame.activeNode);
+      }
+
+      for (const [key, line] of edgeEls) {
+        line.classList.toggle("active-edge", key === activeEdge);
+      }
+
+      const nilMarker = document.getElementById("nilMarker");
+      if (frame.nil) {
+        const pos = frame.nilAt || {x: 90, y: 370};
+        nilMarker.style.display = "";
+        nilMarker.setAttribute("transform", `translate(${pos.x} ${pos.y})`);
+      } else {
+        nilMarker.style.display = "none";
+      }
+
+      const pointerLayer = document.getElementById("pointerLayer");
+      pointerLayer.innerHTML = "";
+      drawPointer(frame.activeNode);
+
+      [...code.querySelectorAll(".line")].forEach((line, index) => {
+        line.classList.toggle("active", frame.codeLines.includes(index));
+      });
+
+      label.textContent = frame.label;
+      note.textContent = frame.note;
+
+      stack.textContent = frame.stack.length > 0 ? frame.stack.join(" → ") : "empty";
+      output.textContent = frame.output.length > 0 ? frame.output.join(", ") : "まだ出力なし";
+
+      seek.value = String(Math.round(ms));
+    }
+
+    function tick(now) {
+      const playbackRate = Number(speed.value);
+
+      const ms = Math.min(
+        script.durationMs,
+        elapsedBeforePlay + (now - startTime) * playbackRate
+      );
+
+      update(ms);
+
+      if (ms >= script.durationMs) {
+        playing = false;
+        play.textContent = "再生";
+        elapsedBeforePlay = script.durationMs;
+        return;
+      }
+
+      raf = requestAnimationFrame(tick);
+    }
+
+    function setPlaying(next) {
+      playing = next;
+      play.textContent = playing ? "一時停止" : "再生";
+
+      if (playing) {
+        if (elapsedBeforePlay >= script.durationMs) {
+          elapsedBeforePlay = 0;
+          update(0);
+        }
+
+        startTime = performance.now();
+        raf = requestAnimationFrame(tick);
+      } else {
+        cancelAnimationFrame(raf);
+        elapsedBeforePlay = Number(seek.value);
+      }
+    }
+
+    play.addEventListener("click", () => {
+      setPlaying(!playing);
+    });
+
+    restart.addEventListener("click", () => {
+      elapsedBeforePlay = 0;
+      update(0);
+
+      if (playing) {
+        startTime = performance.now();
+      }
+    });
+
+    seek.addEventListener("input", () => {
+      elapsedBeforePlay = Number(seek.value);
+      update(elapsedBeforePlay);
+
+      if (playing) {
+        startTime = performance.now();
+      }
+    });
+
+    speed.addEventListener("change", () => {
+      elapsedBeforePlay = Number(seek.value);
+
+      if (playing) {
+        startTime = performance.now();
+      }
+    });
+
+    seek.max = String(script.durationMs);
+
+    drawTree();
+    drawCode();
+    update(0);
+  </script>
+</body>
+</html>

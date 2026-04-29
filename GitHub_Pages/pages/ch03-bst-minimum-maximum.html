@@ -1,0 +1,918 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ch03-bst-minimum-maximum</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #64748b;
+      --panel: #f8fafc;
+      --line: #cbd5e1;
+      --active: #2563eb;
+      --visited: #16a34a;
+      --minimum: #f97316;
+      --maximum: #7c3aed;
+      --nil: #94a3b8;
+      --code: #eef2ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+      color: var(--ink);
+      background: #ffffff;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(420px, 1.1fr) minmax(320px, 0.9fr);
+      gap: 24px;
+      width: min(1120px, calc(100vw - 32px));
+      margin: 24px auto;
+      align-items: start;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.25;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    button,
+    select {
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button:hover,
+    select:hover {
+      border-color: var(--active);
+      color: var(--active);
+    }
+
+    .speed-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    input[type="range"] {
+      width: 220px;
+    }
+
+    .stage,
+    .side {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .stage {
+      padding: 18px;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      aspect-ratio: 720 / 430;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+
+    .edge {
+      stroke: #94a3b8;
+      stroke-width: 3;
+      stroke-linecap: round;
+      transition: stroke 180ms ease, stroke-width 180ms ease, opacity 180ms ease;
+    }
+
+    .edge.active-min {
+      stroke: var(--minimum);
+      stroke-width: 5;
+      opacity: 0.85;
+    }
+
+    .edge.active-max {
+      stroke: var(--maximum);
+      stroke-width: 5;
+      opacity: 0.85;
+    }
+
+    .node circle {
+      fill: #ffffff;
+      stroke: #94a3b8;
+      stroke-width: 3;
+      transition: fill 180ms ease, stroke 180ms ease;
+    }
+
+    .node text {
+      font-size: 22px;
+      font-weight: 700;
+      fill: var(--ink);
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .node.visited-min circle {
+      fill: #ffedd5;
+      stroke: var(--minimum);
+    }
+
+    .node.visited-max circle {
+      fill: #ede9fe;
+      stroke: var(--maximum);
+    }
+
+    .node.active-min circle {
+      fill: #fed7aa;
+      stroke: var(--minimum);
+      stroke-width: 5;
+    }
+
+    .node.active-max circle {
+      fill: #ddd6fe;
+      stroke: var(--maximum);
+      stroke-width: 5;
+    }
+
+    .node.answer-min circle {
+      fill: #ffedd5;
+      stroke: var(--minimum);
+      stroke-width: 6;
+    }
+
+    .node.answer-max circle {
+      fill: #ede9fe;
+      stroke: var(--maximum);
+      stroke-width: 6;
+    }
+
+    .path-min,
+    .path-max {
+      fill: none;
+      stroke-width: 6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      opacity: 0.24;
+    }
+
+    .path-min {
+      stroke: var(--minimum);
+    }
+
+    .path-max {
+      stroke: var(--maximum);
+    }
+
+    .pointer {
+      font-size: 15px;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .pointer-min {
+      fill: var(--minimum);
+    }
+
+    .pointer-max {
+      fill: var(--maximum);
+    }
+
+    .nil-box {
+      fill: #f8fafc;
+      stroke: var(--nil);
+      stroke-width: 2;
+      stroke-dasharray: 5 5;
+      rx: 6;
+    }
+
+    .nil-text {
+      font-size: 15px;
+      font-weight: 700;
+      fill: var(--nil);
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .message {
+      margin-top: 14px;
+      min-height: 132px;
+      padding: 14px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+
+    .label {
+      margin: 0 0 8px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .note {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .vars {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .var {
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .var strong {
+      display: inline-block;
+      min-width: 5.5em;
+    }
+
+    .legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .dot-min {
+      background: var(--minimum);
+    }
+
+    .dot-max {
+      background: var(--maximum);
+    }
+
+    .side {
+      padding: 16px;
+    }
+
+    pre {
+      margin: 0;
+      overflow-x: auto;
+      font-size: 14px;
+      line-height: 1.6;
+      counter-reset: line;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    .line {
+      display: block;
+      min-height: 22px;
+      padding: 0 8px;
+      border-left: 3px solid transparent;
+      white-space: pre;
+    }
+
+    .line::before {
+      counter-increment: line;
+      content: counter(line);
+      display: inline-block;
+      width: 2ch;
+      margin-right: 16px;
+      color: #94a3b8;
+      text-align: right;
+    }
+
+    .line.active {
+      background: var(--code);
+      border-left-color: var(--active);
+    }
+
+    @media (max-width: 820px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .controls {
+        justify-content: flex-start;
+      }
+
+      .vars {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <header>
+      <h1>ch03-bst-minimum-maximum</h1>
+
+      <div class="controls" aria-label="再生コントロール">
+        <button id="play" type="button">再生</button>
+        <button id="restart" type="button">最初へ</button>
+
+        <label class="speed-label">
+          速度
+          <select id="speed" aria-label="再生速度">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1.0x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2.0x</option>
+          </select>
+        </label>
+
+        <input id="seek" type="range" min="0" max="10400" value="0" step="20" aria-label="再生位置">
+      </div>
+    </header>
+
+    <section class="stage">
+      <svg id="tree" viewBox="0 0 720 430" role="img" aria-label="二分探索木の最小値・最大値探索アニメーション"></svg>
+
+      <div class="message">
+        <p id="label" class="label"></p>
+        <p id="note" class="note"></p>
+
+        <div class="vars" aria-label="変数の状態">
+          <div class="var"><strong>minimum x</strong> = <span id="varMin"></span></div>
+          <div class="var"><strong>maximum x</strong> = <span id="varMax"></span></div>
+        </div>
+
+        <div class="legend" aria-label="凡例">
+          <span class="legend-item"><span class="dot dot-min"></span>Minimum: 左へ進み続ける</span>
+          <span class="legend-item"><span class="dot dot-max"></span>Maximum: 右へ進み続ける</span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <pre><code id="code"></code></pre>
+    </aside>
+  </main>
+
+  <script id="framescript" type="application/json">
+{
+  "title": "ch03-bst-minimum-maximum",
+  "durationMs": 10400,
+  "layout": {
+    "nodes": {
+      "7": {"x": 360, "y": 90},
+      "4": {"x": 220, "y": 200},
+      "9": {"x": 500, "y": 200},
+      "2": {"x": 140, "y": 310},
+      "5": {"x": 300, "y": 310},
+      "8": {"x": 440, "y": 310},
+      "16": {"x": 580, "y": 310}
+    },
+    "edges": [["7", "4"], ["7", "9"], ["4", "2"], ["4", "5"], ["9", "8"], ["9", "16"]]
+  },
+  "code": [
+    "Tree-Minimum(T, x)",
+    "    while left[x] != NIL do",
+    "        x = left[x]",
+    "    return x",
+    "",
+    "Tree-Maximum(T, x)",
+    "    while right[x] != NIL do",
+    "        x = right[x]",
+    "    return x"
+  ],
+  "frames": [
+    {
+      "at": 0,
+      "mode": "start",
+      "activeMin": "7",
+      "activeMax": null,
+      "visitedMin": ["7"],
+      "visitedMax": [],
+      "answerMin": null,
+      "answerMax": null,
+      "pathMin": ["7"],
+      "pathMax": [],
+      "activeEdgeMin": null,
+      "activeEdgeMax": null,
+      "nil": false,
+      "vars": {"min": "7", "max": "未実行"},
+      "codeLines": [0, 1],
+      "label": "Tree-Minimum(T, root) を実行する",
+      "note": "二分探索木では，小さいキーは左側にある．したがって最小値は，左の子が NIL になるまで左へ進むことで得られる．"
+    },
+    {
+      "at": 1200,
+      "mode": "minimum",
+      "activeMin": "7",
+      "activeMax": null,
+      "visitedMin": ["7"],
+      "visitedMax": [],
+      "answerMin": null,
+      "answerMax": null,
+      "pathMin": ["7"],
+      "pathMax": [],
+      "activeEdgeMin": ["7", "4"],
+      "activeEdgeMax": null,
+      "nil": false,
+      "vars": {"min": "7", "max": "未実行"},
+      "codeLines": [1, 2],
+      "label": "left[7] != NIL なので左へ進む",
+      "note": "left[7] は 4 である．while 条件が真なので，x = left[x] として x を 4 に更新する．"
+    },
+    {
+      "at": 2400,
+      "mode": "minimum",
+      "activeMin": "4",
+      "activeMax": null,
+      "visitedMin": ["7", "4"],
+      "visitedMax": [],
+      "answerMin": null,
+      "answerMax": null,
+      "pathMin": ["7", "4"],
+      "pathMax": [],
+      "activeEdgeMin": ["4", "2"],
+      "activeEdgeMax": null,
+      "nil": false,
+      "vars": {"min": "4", "max": "未実行"},
+      "codeLines": [1, 2],
+      "label": "left[4] != NIL なのでさらに左へ進む",
+      "note": "left[4] は 2 である．最小値を探す限り，右側を見る必要はない．"
+    },
+    {
+      "at": 3600,
+      "mode": "minimum",
+      "activeMin": "2",
+      "activeMax": null,
+      "visitedMin": ["7", "4", "2"],
+      "visitedMax": [],
+      "answerMin": null,
+      "answerMax": null,
+      "pathMin": ["7", "4", "2"],
+      "pathMax": [],
+      "activeEdgeMin": null,
+      "activeEdgeMax": null,
+      "nil": true,
+      "nilAt": {"x": 90, "y": 370},
+      "vars": {"min": "2", "max": "未実行"},
+      "codeLines": [1],
+      "label": "left[2] == NIL",
+      "note": "2 には左の子がない．これ以上小さいキーへ進めないので，現在の x = 2 が最小値である．"
+    },
+    {
+      "at": 4600,
+      "mode": "minimum",
+      "activeMin": "2",
+      "activeMax": null,
+      "visitedMin": ["7", "4", "2"],
+      "visitedMax": [],
+      "answerMin": "2",
+      "answerMax": null,
+      "pathMin": ["7", "4", "2"],
+      "pathMax": [],
+      "activeEdgeMin": null,
+      "activeEdgeMax": null,
+      "nil": false,
+      "vars": {"min": "2", "max": "未実行"},
+      "codeLines": [3],
+      "label": "return x",
+      "note": "Tree-Minimum は頂点 2 を返す．根から左へ進み続けた先が最小値である．"
+    },
+    {
+      "at": 5600,
+      "mode": "maximum",
+      "activeMin": null,
+      "activeMax": "7",
+      "visitedMin": ["7", "4", "2"],
+      "visitedMax": ["7"],
+      "answerMin": "2",
+      "answerMax": null,
+      "pathMin": ["7", "4", "2"],
+      "pathMax": ["7"],
+      "activeEdgeMin": null,
+      "activeEdgeMax": null,
+      "nil": false,
+      "vars": {"min": "2", "max": "7"},
+      "codeLines": [5, 6],
+      "label": "Tree-Maximum(T, root) を実行する",
+      "note": "最大値探索は最小値探索の対称である．大きいキーは右側にあるので，右の子が NIL になるまで右へ進む．"
+    },
+    {
+      "at": 6800,
+      "mode": "maximum",
+      "activeMin": null,
+      "activeMax": "7",
+      "visitedMin": ["7", "4", "2"],
+      "visitedMax": ["7"],
+      "answerMin": "2",
+      "answerMax": null,
+      "pathMin": ["7", "4", "2"],
+      "pathMax": ["7"],
+      "activeEdgeMin": null,
+      "activeEdgeMax": ["7", "9"],
+      "nil": false,
+      "vars": {"min": "2", "max": "7"},
+      "codeLines": [6, 7],
+      "label": "right[7] != NIL なので右へ進む",
+      "note": "right[7] は 9 である．while 条件が真なので，x = right[x] として x を 9 に更新する．"
+    },
+    {
+      "at": 8000,
+      "mode": "maximum",
+      "activeMin": null,
+      "activeMax": "9",
+      "visitedMin": ["7", "4", "2"],
+      "visitedMax": ["7", "9"],
+      "answerMin": "2",
+      "answerMax": null,
+      "pathMin": ["7", "4", "2"],
+      "pathMax": ["7", "9"],
+      "activeEdgeMin": null,
+      "activeEdgeMax": ["9", "16"],
+      "nil": false,
+      "vars": {"min": "2", "max": "9"},
+      "codeLines": [6, 7],
+      "label": "right[9] != NIL なのでさらに右へ進む",
+      "note": "right[9] は 16 である．最大値を探す限り，左側を見る必要はない．"
+    },
+    {
+      "at": 9200,
+      "mode": "maximum",
+      "activeMin": null,
+      "activeMax": "16",
+      "visitedMin": ["7", "4", "2"],
+      "visitedMax": ["7", "9", "16"],
+      "answerMin": "2",
+      "answerMax": null,
+      "pathMin": ["7", "4", "2"],
+      "pathMax": ["7", "9", "16"],
+      "activeEdgeMin": null,
+      "activeEdgeMax": null,
+      "nil": true,
+      "nilAt": {"x": 630, "y": 370},
+      "vars": {"min": "2", "max": "16"},
+      "codeLines": [6],
+      "label": "right[16] == NIL",
+      "note": "16 には右の子がない．これ以上大きいキーへ進めないので，現在の x = 16 が最大値である．"
+    },
+    {
+      "at": 10200,
+      "mode": "done",
+      "activeMin": null,
+      "activeMax": "16",
+      "visitedMin": ["7", "4", "2"],
+      "visitedMax": ["7", "9", "16"],
+      "answerMin": "2",
+      "answerMax": "16",
+      "pathMin": ["7", "4", "2"],
+      "pathMax": ["7", "9", "16"],
+      "activeEdgeMin": null,
+      "activeEdgeMax": null,
+      "nil": false,
+      "vars": {"min": "2", "max": "16"},
+      "codeLines": [8],
+      "label": "return x",
+      "note": "Tree-Maximum は頂点 16 を返す．最小値は最左端，最大値は最右端にある．"
+    }
+  ]
+}
+  </script>
+
+  <script>
+    const script = JSON.parse(document.getElementById("framescript").textContent);
+
+    const svg = document.getElementById("tree");
+    const code = document.getElementById("code");
+    const label = document.getElementById("label");
+    const note = document.getElementById("note");
+    const varMin = document.getElementById("varMin");
+    const varMax = document.getElementById("varMax");
+
+    const play = document.getElementById("play");
+    const restart = document.getElementById("restart");
+    const seek = document.getElementById("seek");
+    const speed = document.getElementById("speed");
+
+    const nodeEls = new Map();
+    const edgeEls = new Map();
+
+    let startTime = 0;
+    let elapsedBeforePlay = 0;
+    let raf = 0;
+    let playing = false;
+
+    function svgEl(name) {
+      return document.createElementNS("http://www.w3.org/2000/svg", name);
+    }
+
+    function edgeKey(from, to) {
+      return `${from}->${to}`;
+    }
+
+    function normalizeEdge(edge) {
+      if (!edge) return null;
+      return edgeKey(edge[0], edge[1]);
+    }
+
+    function drawTree() {
+      const pathMin = svgEl("path");
+      pathMin.setAttribute("id", "pathMin");
+      pathMin.setAttribute("class", "path-min");
+      svg.append(pathMin);
+
+      const pathMax = svgEl("path");
+      pathMax.setAttribute("id", "pathMax");
+      pathMax.setAttribute("class", "path-max");
+      svg.append(pathMax);
+
+      for (const [from, to] of script.layout.edges) {
+        const a = script.layout.nodes[from];
+        const b = script.layout.nodes[to];
+
+        const line = svgEl("line");
+        line.setAttribute("class", "edge");
+        line.setAttribute("x1", a.x);
+        line.setAttribute("y1", a.y);
+        line.setAttribute("x2", b.x);
+        line.setAttribute("y2", b.y);
+
+        svg.insertBefore(line, pathMin);
+        edgeEls.set(edgeKey(from, to), line);
+      }
+
+      const nilGroup = svgEl("g");
+      nilGroup.setAttribute("id", "nilMarker");
+      nilGroup.style.display = "none";
+
+      const nilRect = svgEl("rect");
+      nilRect.setAttribute("class", "nil-box");
+      nilRect.setAttribute("x", -28);
+      nilRect.setAttribute("y", -16);
+      nilRect.setAttribute("width", 56);
+      nilRect.setAttribute("height", 32);
+
+      const nilText = svgEl("text");
+      nilText.setAttribute("class", "nil-text");
+      nilText.textContent = "NIL";
+
+      nilGroup.append(nilRect, nilText);
+      svg.append(nilGroup);
+
+      for (const [key, pos] of Object.entries(script.layout.nodes)) {
+        const group = svgEl("g");
+        const circle = svgEl("circle");
+        const text = svgEl("text");
+
+        group.setAttribute("class", "node");
+        group.setAttribute("transform", `translate(${pos.x} ${pos.y})`);
+
+        circle.setAttribute("r", 30);
+        text.textContent = key;
+
+        group.append(circle, text);
+        svg.append(group);
+
+        nodeEls.set(key, group);
+      }
+
+      const pointerLayer = svgEl("g");
+      pointerLayer.setAttribute("id", "pointerLayer");
+      svg.append(pointerLayer);
+    }
+
+    function drawCode() {
+      code.innerHTML = "";
+
+      script.code.forEach((line) => {
+        const span = document.createElement("span");
+        span.className = "line";
+        span.textContent = line;
+        code.append(span);
+      });
+    }
+
+    function frameAt(ms) {
+      return script.frames.reduce(
+        (current, frame) => frame.at <= ms ? frame : current,
+        script.frames[0]
+      );
+    }
+
+    function drawPath(id, pathKeys) {
+      const points = (pathKeys || [])
+        .map((key) => script.layout.nodes[key])
+        .filter(Boolean);
+
+      const pathData = points
+        .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+        .join(" ");
+
+      document.getElementById(id).setAttribute("d", pathData);
+    }
+
+    function drawPointer(name, nodeKey, className, offsetY) {
+      if (!nodeKey || nodeKey === "NIL" || !script.layout.nodes[nodeKey]) {
+        return;
+      }
+
+      const point = script.layout.nodes[nodeKey];
+      const text = svgEl("text");
+
+      text.setAttribute("class", `pointer ${className}`);
+      text.setAttribute("x", point.x);
+      text.setAttribute("y", point.y + offsetY);
+      text.textContent = name;
+
+      document.getElementById("pointerLayer").append(text);
+    }
+
+    function update(ms) {
+      const frame = frameAt(ms);
+
+      const visitedMin = new Set(frame.visitedMin || []);
+      const visitedMax = new Set(frame.visitedMax || []);
+      const activeEdgeMin = normalizeEdge(frame.activeEdgeMin);
+      const activeEdgeMax = normalizeEdge(frame.activeEdgeMax);
+
+      for (const [key, group] of nodeEls) {
+        group.classList.toggle("visited-min", visitedMin.has(key));
+        group.classList.toggle("visited-max", visitedMax.has(key));
+        group.classList.toggle("active-min", key === frame.activeMin);
+        group.classList.toggle("active-max", key === frame.activeMax);
+        group.classList.toggle("answer-min", key === frame.answerMin);
+        group.classList.toggle("answer-max", key === frame.answerMax);
+      }
+
+      for (const [key, line] of edgeEls) {
+        line.classList.toggle("active-min", key === activeEdgeMin);
+        line.classList.toggle("active-max", key === activeEdgeMax);
+      }
+
+      drawPath("pathMin", frame.pathMin);
+      drawPath("pathMax", frame.pathMax);
+
+      const nilMarker = document.getElementById("nilMarker");
+      if (frame.nil) {
+        const pos = frame.nilAt || {x: 90, y: 370};
+        nilMarker.style.display = "";
+        nilMarker.setAttribute("transform", `translate(${pos.x} ${pos.y})`);
+      } else {
+        nilMarker.style.display = "none";
+      }
+
+      const pointerLayer = document.getElementById("pointerLayer");
+      pointerLayer.innerHTML = "";
+
+      if (frame.activeMin) {
+        drawPointer("x", frame.activeMin, "pointer-min", -44);
+      }
+
+      if (frame.activeMax) {
+        drawPointer("x", frame.activeMax, "pointer-max", 44);
+      }
+
+      [...code.querySelectorAll(".line")].forEach((line, index) => {
+        line.classList.toggle("active", frame.codeLines.includes(index));
+      });
+
+      label.textContent = frame.label;
+      note.textContent = frame.note;
+
+      varMin.textContent = frame.vars.min;
+      varMax.textContent = frame.vars.max;
+
+      seek.value = String(Math.round(ms));
+    }
+
+    function tick(now) {
+      const playbackRate = Number(speed.value);
+
+      const ms = Math.min(
+        script.durationMs,
+        elapsedBeforePlay + (now - startTime) * playbackRate
+      );
+
+      update(ms);
+
+      if (ms >= script.durationMs) {
+        playing = false;
+        play.textContent = "再生";
+        elapsedBeforePlay = script.durationMs;
+        return;
+      }
+
+      raf = requestAnimationFrame(tick);
+    }
+
+    function setPlaying(next) {
+      playing = next;
+      play.textContent = playing ? "一時停止" : "再生";
+
+      if (playing) {
+        if (elapsedBeforePlay >= script.durationMs) {
+          elapsedBeforePlay = 0;
+          update(0);
+        }
+
+        startTime = performance.now();
+        raf = requestAnimationFrame(tick);
+      } else {
+        cancelAnimationFrame(raf);
+        elapsedBeforePlay = Number(seek.value);
+      }
+    }
+
+    play.addEventListener("click", () => {
+      setPlaying(!playing);
+    });
+
+    restart.addEventListener("click", () => {
+      elapsedBeforePlay = 0;
+      update(0);
+
+      if (playing) {
+        startTime = performance.now();
+      }
+    });
+
+    seek.addEventListener("input", () => {
+      elapsedBeforePlay = Number(seek.value);
+      update(elapsedBeforePlay);
+
+      if (playing) {
+        startTime = performance.now();
+      }
+    });
+
+    speed.addEventListener("change", () => {
+      elapsedBeforePlay = Number(seek.value);
+
+      if (playing) {
+        startTime = performance.now();
+      }
+    });
+
+    seek.max = String(script.durationMs);
+
+    drawTree();
+    drawCode();
+    update(0);
+  </script>
+</body>
+</html>

@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ch03-bst-delete</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #64748b;
+      --panel: #f8fafc;
+      --line: #cbd5e1;
+      --active: #2563eb;
+      --visited: #16a34a;
+      --delete: #dc2626;
+      --successor: #f97316;
+      --nil: #94a3b8;
+      --code: #eef2ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+      color: var(--ink);
+      background: #ffffff;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(420px, 1.1fr) minmax(320px, 0.9fr);
+      gap: 24px;
+      width: min(1120px, calc(100vw - 32px));
+      margin: 24px auto;
+      align-items: start;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.25;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    button,
+    select {
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button:hover,
+    select:hover {
+      border-color: var(--active);
+      color: var(--active);
+    }
+
+    .speed-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    input[type="range"] {
+      width: 220px;
+    }
+
+    .stage,
+    .side {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .stage {
+      padding: 18px;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      aspect-ratio: 720 / 460;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+
+    .edge {
+      stroke: #94a3b8;
+      stroke-width: 3;
+      stroke-linecap: round;
+      transition: opacity 180ms ease, stroke 180ms ease, stroke-width 180ms ease;
+    }
+
+    .edge.cut {
+      stroke: var(--delete);
+      stroke-width: 5;
+      opacity: 0.35;
+      stroke-dasharray: 8 8;
+    }
+
+    .edge.removed {
+      opacity: 0.12;
+      stroke-dasharray: 8 8;
+    }
+
+    .node circle {
+      fill: #ffffff;
+      stroke: #94a3b8;
+      stroke-width: 3;
+      transition: fill 180ms ease, stroke 180ms ease, opacity 180ms ease;
+    }
+
+    .node text {
+      font-size: 22px;
+      font-weight: 700;
+      fill: var(--ink);
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .node.visited circle {
+      fill: #dcfce7;
+      stroke: var(--visited);
+    }
+
+    .node.active circle {
+      fill: #dbeafe;
+      stroke: var(--active);
+      stroke-width: 5;
+    }
+
+    .node.target circle {
+      fill: #fee2e2;
+      stroke: var(--delete);
+      stroke-width: 5;
+    }
+
+    .node.successor circle {
+      fill: #ffedd5;
+      stroke: var(--successor);
+      stroke-width: 5;
+    }
+
+    .node.detached circle {
+      fill: #ffffff;
+      stroke: var(--delete);
+      stroke-width: 4;
+      stroke-dasharray: 7 7;
+      opacity: 0.55;
+    }
+
+    .node.detached text {
+      fill: var(--delete);
+      opacity: 0.65;
+    }
+
+    .node.hidden {
+      display: none;
+    }
+
+    .path {
+      fill: none;
+      stroke: var(--active);
+      stroke-width: 6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      opacity: 0.28;
+    }
+
+    .pointer {
+      font-size: 15px;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .pointer-z {
+      fill: var(--delete);
+    }
+
+    .pointer-y {
+      fill: var(--successor);
+    }
+
+    .pointer-x {
+      fill: var(--active);
+    }
+
+    .nil-box {
+      fill: #f8fafc;
+      stroke: var(--nil);
+      stroke-width: 2;
+      stroke-dasharray: 5 5;
+      rx: 6;
+    }
+
+    .nil-text {
+      font-size: 15px;
+      font-weight: 700;
+      fill: var(--nil);
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .message {
+      margin-top: 14px;
+      min-height: 118px;
+      padding: 14px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+
+    .label {
+      margin: 0 0 8px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .note {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .vars {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .var {
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 14px;
+    }
+
+    .var strong {
+      display: inline-block;
+      min-width: 1.5em;
+    }
+
+    .side {
+      padding: 16px;
+    }
+
+    pre {
+      margin: 0;
+      overflow-x: auto;
+      font-size: 14px;
+      line-height: 1.6;
+      counter-reset: line;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    .line {
+      display: block;
+      min-height: 22px;
+      padding: 0 8px;
+      border-left: 3px solid transparent;
+      white-space: pre;
+    }
+
+    .line::before {
+      counter-increment: line;
+      content: counter(line);
+      display: inline-block;
+      width: 2ch;
+      margin-right: 16px;
+      color: #94a3b8;
+      text-align: right;
+    }
+
+    .line.active {
+      background: var(--code);
+      border-left-color: var(--active);
+    }
+
+    @media (max-width: 820px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .controls {
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <header>
+      <h1>ch03-bst-delete</h1>
+
+      <div class="controls" aria-label="再生コントロール">
+        <button id="play" type="button">再生</button>
+        <button id="restart" type="button">最初へ</button>
+
+        <label class="speed-label">
+          速度
+          <select id="speed" aria-label="再生速度">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1.0x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2.0x</option>
+          </select>
+        </label>
+
+        <input id="seek" type="range" min="0" max="13800" value="0" step="20" aria-label="再生位置">
+      </div>
+    </header>
+
+    <section class="stage">
+      <svg id="tree" viewBox="0 0 720 460" role="img" aria-label="二分探索木からの削除アニメーション"></svg>
+
+      <div class="message">
+        <p id="label" class="label"></p>
+        <p id="note" class="note"></p>
+
+        <div class="vars" aria-label="変数の状態">
+          <div class="var"><strong>z</strong> = <span id="varZ"></span></div>
+          <div class="var"><strong>y</strong> = <span id="varY"></span></div>
+          <div class="var"><strong>x</strong> = <span id="varX"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <pre><code id="code"></code></pre>
+    </aside>
+  </main>
+
+  <script id="framescript" type="application/json">
+{
+  "title": "ch03-bst-delete",
+  "durationMs": 13800,
+  "targetKey": "7",
+  "successorKey": "8",
+  "layout": {
+    "nodes": {
+      "7": {"x": 360, "y": 90},
+      "4": {"x": 220, "y": 200},
+      "9": {"x": 500, "y": 200},
+      "2": {"x": 140, "y": 320},
+      "5": {"x": 300, "y": 320},
+      "8": {"x": 440, "y": 320},
+      "16": {"x": 580, "y": 320}
+    },
+    "edges": [["7", "4"], ["7", "9"], ["4", "2"], ["4", "5"], ["9", "8"], ["9", "16"]],
+    "removedEdge": ["9", "8"]
+  },
+  "code": [
+    "Tree-Delete(T, z)",
+    "    if left[z] == NIL or right[z] == NIL then",
+    "        y = z",
+    "    else",
+    "        y = Tree-Minimum(T, right[z])",
+    "",
+    "    if left[y] != NIL then",
+    "        x = left[y]",
+    "    else",
+    "        x = right[y]",
+    "",
+    "    if x != NIL then",
+    "        parent[x] = parent[y]",
+    "",
+    "    if parent[y] == NIL then",
+    "        root[T] = x",
+    "    else if y == left[parent[y]] then",
+    "        left[parent[y]] = x",
+    "    else",
+    "        right[parent[y]] = x",
+    "",
+    "    if y != z then",
+    "        key[z] = key[y]",
+    "",
+    "    free(y)",
+    "    return root[T]"
+  ],
+  "frames": [
+    {
+      "at": 0,
+      "displayKeys": {"7": "7"},
+      "targetNode": "7",
+      "successorNode": null,
+      "activeNode": "7",
+      "detachedNode": null,
+      "hiddenNodes": [],
+      "cutEdge": null,
+      "removedEdges": [],
+      "path": ["7"],
+      "nil": false,
+      "vars": {"z": "7", "y": "未設定", "x": "未設定"},
+      "codeLines": [0],
+      "label": "z = 7 を二分探索木から削除する",
+      "note": "今回は，削除対象 z が左の子と右の子を両方持つ場合を扱う．この場合は，z 自身を直接消すのではなく，後継 y を探す．"
+    },
+    {
+      "at": 1200,
+      "displayKeys": {"7": "7"},
+      "targetNode": "7",
+      "successorNode": null,
+      "activeNode": "7",
+      "detachedNode": null,
+      "hiddenNodes": [],
+      "cutEdge": null,
+      "removedEdges": [],
+      "path": ["7"],
+      "nil": false,
+      "vars": {"z": "7", "y": "未設定", "x": "未設定"},
+      "codeLines": [1, 3, 4],
+      "label": "7 は左右の子を持つので後継を探す",
+      "note": "left[7] も right[7] も NIL ではない．したがって else 側に進み，right[7] の中で最小の頂点を y とする．"
+    },
+    {
+      "at": 2600,
+      "displayKeys": {"7": "7"},
+      "targetNode": "7",
+      "successorNode": "8",
+      "activeNode": "9",
+      "detachedNode": null,
+      "hiddenNodes": [],
+      "cutEdge": null,
+      "removedEdges": [],
+      "path": ["7", "9"],
+      "nil": false,
+      "vars": {"z": "7", "y": "探索中", "x": "未設定"},
+      "codeLines": [4],
+      "label": "Tree-Minimum(T, right[7])",
+      "note": "right[7] は 9 である．右部分木に入り，そこから左へ進めるだけ進むと最小値が得られる．"
+    },
+    {
+      "at": 4000,
+      "displayKeys": {"7": "7"},
+      "targetNode": "7",
+      "successorNode": "8",
+      "activeNode": "8",
+      "detachedNode": null,
+      "hiddenNodes": [],
+      "cutEdge": null,
+      "removedEdges": [],
+      "path": ["7", "9", "8"],
+      "nil": false,
+      "vars": {"z": "7", "y": "8", "x": "未設定"},
+      "codeLines": [4],
+      "label": "y = 8",
+      "note": "9 の左の子 8 に到達した．8 にはこれ以上左の子がないので，8 が z = 7 の後継である．"
+    },
+    {
+      "at": 5400,
+      "displayKeys": {"7": "7"},
+      "targetNode": "7",
+      "successorNode": "8",
+      "activeNode": "8",
+      "detachedNode": null,
+      "hiddenNodes": [],
+      "cutEdge": null,
+      "removedEdges": [],
+      "path": ["7", "9", "8"],
+      "nil": true,
+      "nilAt": {"x": 440, "y": 390},
+      "vars": {"z": "7", "y": "8", "x": "未設定"},
+      "codeLines": [6, 8, 9],
+      "label": "left[8] は NIL なので x = right[8]",
+      "note": "y = 8 の左の子は NIL である．そこで else 側に進み，x = right[y] とする．この例では right[8] も NIL である．"
+    },
+    {
+      "at": 6600,
+      "displayKeys": {"7": "7"},
+      "targetNode": "7",
+      "successorNode": "8",
+      "activeNode": null,
+      "detachedNode": null,
+      "hiddenNodes": [],
+      "cutEdge": null,
+      "removedEdges": [],
+      "path": ["7", "9", "8"],
+      "nil": true,
+      "nilAt": {"x": 440, "y": 390},
+      "vars": {"z": "7", "y": "8", "x": "NIL"},
+      "codeLines": [11],
+      "label": "x = NIL なので parent[x] は更新しない",
+      "note": "x が NIL の場合，親ポインタを更新する対象がない．したがって if x != NIL then の中身は実行されない．"
+    },
+    {
+      "at": 7800,
+      "displayKeys": {"7": "7"},
+      "targetNode": "7",
+      "successorNode": "8",
+      "activeNode": "8",
+      "detachedNode": null,
+      "hiddenNodes": [],
+      "cutEdge": ["9", "8"],
+      "removedEdges": [],
+      "path": ["7", "9", "8"],
+      "nil": false,
+      "vars": {"z": "7", "y": "8", "x": "NIL"},
+      "codeLines": [14, 16, 17],
+      "label": "y は parent[y] の左の子である",
+      "note": "parent[8] は 9 であり，8 は left[9] である．したがって left[parent[y]] = x，つまり left[9] = NIL とする．"
+    },
+    {
+      "at": 9000,
+      "displayKeys": {"7": "7"},
+      "targetNode": "7",
+      "successorNode": "8",
+      "activeNode": "8",
+      "detachedNode": "8",
+      "hiddenNodes": [],
+      "cutEdge": null,
+      "removedEdges": [["9", "8"]],
+      "path": ["7", "9"],
+      "nil": true,
+      "nilAt": {"x": 440, "y": 320},
+      "vars": {"z": "7", "y": "8", "x": "NIL"},
+      "codeLines": [17],
+      "label": "left[9] = NIL",
+      "note": "後継 y = 8 を，元の位置から切り離した．この段階では 8 はまだメモリ上に存在しているが，木の構造からは外れている．"
+    },
+    {
+      "at": 10200,
+      "displayKeys": {"7": "7"},
+      "targetNode": "7",
+      "successorNode": "8",
+      "activeNode": "7",
+      "detachedNode": "8",
+      "hiddenNodes": [],
+      "cutEdge": null,
+      "removedEdges": [["9", "8"]],
+      "path": ["7"],
+      "nil": false,
+      "vars": {"z": "7", "y": "8", "x": "NIL"},
+      "codeLines": [21, 22],
+      "label": "y != z なので key[z] = key[y]",
+      "note": "y は z とは別の頂点である．そこで，後継 y のキー 8 を削除対象 z の位置にコピーする．"
+    },
+    {
+      "at": 11400,
+      "displayKeys": {"7": "8"},
+      "targetNode": null,
+      "successorNode": null,
+      "activeNode": "7",
+      "detachedNode": "8",
+      "hiddenNodes": [],
+      "cutEdge": null,
+      "removedEdges": [["9", "8"]],
+      "path": ["7"],
+      "nil": false,
+      "vars": {"z": "元の7，現在key=8", "y": "8", "x": "NIL"},
+      "codeLines": [22],
+      "label": "根のキーが 7 から 8 に置き換わる",
+      "note": "物理的に根ノードを消すのではなく，根ノードの key を 8 に書き換える．これにより二分探索木の順序条件が保たれる．"
+    },
+    {
+      "at": 12600,
+      "displayKeys": {"7": "8"},
+      "targetNode": null,
+      "successorNode": null,
+      "activeNode": null,
+      "detachedNode": "8",
+      "hiddenNodes": [],
+      "cutEdge": null,
+      "removedEdges": [["9", "8"]],
+      "path": [],
+      "nil": false,
+      "vars": {"z": "key=8", "y": "8", "x": "NIL"},
+      "codeLines": [24],
+      "label": "free(y)",
+      "note": "元の位置にあった後継ノード y を解放する．key は z にコピー済みなので，この y は木から不要になる．"
+    },
+    {
+      "at": 13400,
+      "displayKeys": {"7": "8"},
+      "targetNode": null,
+      "successorNode": null,
+      "activeNode": "7",
+      "detachedNode": null,
+      "hiddenNodes": ["8"],
+      "cutEdge": null,
+      "removedEdges": [["9", "8"]],
+      "path": ["7"],
+      "nil": false,
+      "vars": {"z": "key=8", "y": "解放済み", "x": "NIL"},
+      "codeLines": [25],
+      "label": "return root[T]",
+      "note": "削除後の根を返す．結果として，元の 7 の位置には 8 が入り，9 の左の子は NIL になる．"
+    }
+  ]
+}
+  </script>
+
+  <script>
+    const script = JSON.parse(document.getElementById("framescript").textContent);
+
+    const svg = document.getElementById("tree");
+    const code = document.getElementById("code");
+    const label = document.getElementById("label");
+    const note = document.getElementById("note");
+
+    const varZ = document.getElementById("varZ");
+    const varY = document.getElementById("varY");
+    const varX = document.getElementById("varX");
+
+    const play = document.getElementById("play");
+    const restart = document.getElementById("restart");
+    const seek = document.getElementById("seek");
+    const speed = document.getElementById("speed");
+
+    const nodeEls = new Map();
+    const nodeTextEls = new Map();
+    const edgeEls = new Map();
+
+    let startTime = 0;
+    let elapsedBeforePlay = 0;
+    let raf = 0;
+    let playing = false;
+
+    function svgEl(name) {
+      return document.createElementNS("http://www.w3.org/2000/svg", name);
+    }
+
+    function edgeKey(from, to) {
+      return `${from}->${to}`;
+    }
+
+    function drawTree() {
+      const path = svgEl("path");
+      path.setAttribute("id", "searchPath");
+      path.setAttribute("class", "path");
+      svg.append(path);
+
+      for (const [from, to] of script.layout.edges) {
+        const a = script.layout.nodes[from];
+        const b = script.layout.nodes[to];
+
+        const line = svgEl("line");
+        line.setAttribute("class", "edge");
+        line.setAttribute("x1", a.x);
+        line.setAttribute("y1", a.y);
+        line.setAttribute("x2", b.x);
+        line.setAttribute("y2", b.y);
+
+        svg.insertBefore(line, path);
+        edgeEls.set(edgeKey(from, to), line);
+      }
+
+      const nilGroup = svgEl("g");
+      nilGroup.setAttribute("id", "nilMarker");
+      nilGroup.style.display = "none";
+
+      const nilRect = svgEl("rect");
+      nilRect.setAttribute("class", "nil-box");
+      nilRect.setAttribute("x", -28);
+      nilRect.setAttribute("y", -16);
+      nilRect.setAttribute("width", 56);
+      nilRect.setAttribute("height", 32);
+
+      const nilText = svgEl("text");
+      nilText.setAttribute("class", "nil-text");
+      nilText.textContent = "NIL";
+
+      nilGroup.append(nilRect, nilText);
+      svg.append(nilGroup);
+
+      for (const [key, pos] of Object.entries(script.layout.nodes)) {
+        const group = svgEl("g");
+        const circle = svgEl("circle");
+        const text = svgEl("text");
+
+        group.setAttribute("class", "node");
+        group.setAttribute("transform", `translate(${pos.x} ${pos.y})`);
+
+        circle.setAttribute("r", 30);
+        text.textContent = key;
+
+        group.append(circle, text);
+        svg.append(group);
+
+        nodeEls.set(key, group);
+        nodeTextEls.set(key, text);
+      }
+
+      const pointerLayer = svgEl("g");
+      pointerLayer.setAttribute("id", "pointerLayer");
+      svg.append(pointerLayer);
+    }
+
+    function drawCode() {
+      code.innerHTML = "";
+
+      script.code.forEach((line) => {
+        const span = document.createElement("span");
+        span.className = "line";
+        span.textContent = line;
+        code.append(span);
+      });
+    }
+
+    function frameAt(ms) {
+      return script.frames.reduce(
+        (current, frame) => frame.at <= ms ? frame : current,
+        script.frames[0]
+      );
+    }
+
+    function drawPointer(name, nodeKey, className, offsetY) {
+      if (!nodeKey || nodeKey === "NIL" || !script.layout.nodes[nodeKey]) {
+        return;
+      }
+
+      const point = script.layout.nodes[nodeKey];
+      const text = svgEl("text");
+
+      text.setAttribute("class", `pointer ${className}`);
+      text.setAttribute("x", point.x);
+      text.setAttribute("y", point.y + offsetY);
+      text.textContent = name;
+
+      document.getElementById("pointerLayer").append(text);
+    }
+
+    function normalizeEdge(edge) {
+      if (!edge) return null;
+      return edgeKey(edge[0], edge[1]);
+    }
+
+    function update(ms) {
+      const frame = frameAt(ms);
+
+      const pathKeys = frame.path || [];
+      const cutEdgeKey = normalizeEdge(frame.cutEdge);
+      const removedEdgeKeys = new Set((frame.removedEdges || []).map(normalizeEdge));
+      const hiddenNodes = new Set(frame.hiddenNodes || []);
+
+      for (const [key, text] of nodeTextEls) {
+        const display = frame.displayKeys && frame.displayKeys[key] ? frame.displayKeys[key] : key;
+        text.textContent = display;
+      }
+
+      for (const [key, group] of nodeEls) {
+        group.classList.toggle("hidden", hiddenNodes.has(key));
+        group.classList.toggle("visited", pathKeys.includes(key));
+        group.classList.toggle("active", key === frame.activeNode);
+        group.classList.toggle("target", key === frame.targetNode);
+        group.classList.toggle("successor", key === frame.successorNode);
+        group.classList.toggle("detached", key === frame.detachedNode);
+      }
+
+      for (const [key, line] of edgeEls) {
+        line.classList.toggle("cut", key === cutEdgeKey);
+        line.classList.toggle("removed", removedEdgeKeys.has(key));
+      }
+
+      const nilMarker = document.getElementById("nilMarker");
+      if (frame.nil) {
+        const pos = frame.nilAt || {x: 440, y: 390};
+        nilMarker.style.display = "";
+        nilMarker.setAttribute("transform", `translate(${pos.x} ${pos.y})`);
+      } else {
+        nilMarker.style.display = "none";
+      }
+
+      const points = pathKeys
+        .map((key) => script.layout.nodes[key])
+        .filter(Boolean);
+
+      const pathData = points
+        .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+        .join(" ");
+
+      document.getElementById("searchPath").setAttribute("d", pathData);
+
+      [...code.querySelectorAll(".line")].forEach((line, index) => {
+        line.classList.toggle("active", frame.codeLines.includes(index));
+      });
+
+      const pointerLayer = document.getElementById("pointerLayer");
+      pointerLayer.innerHTML = "";
+
+      drawPointer("z", "7", "pointer-z", -44);
+      drawPointer("y", frame.vars.y, "pointer-y", 44);
+      drawPointer("x", frame.vars.x, "pointer-x", -44);
+
+      label.textContent = frame.label;
+      note.textContent = frame.note;
+
+      varZ.textContent = frame.vars.z;
+      varY.textContent = frame.vars.y;
+      varX.textContent = frame.vars.x;
+
+      seek.value = String(Math.round(ms));
+    }
+
+    function tick(now) {
+      const playbackRate = Number(speed.value);
+
+      const ms = Math.min(
+        script.durationMs,
+        elapsedBeforePlay + (now - startTime) * playbackRate
+      );
+
+      update(ms);
+
+      if (ms >= script.durationMs) {
+        playing = false;
+        play.textContent = "再生";
+        elapsedBeforePlay = script.durationMs;
+        return;
+      }
+
+      raf = requestAnimationFrame(tick);
+    }
+
+    function setPlaying(next) {
+      playing = next;
+      play.textContent = playing ? "一時停止" : "再生";
+
+      if (playing) {
+        if (elapsedBeforePlay >= script.durationMs) {
+          elapsedBeforePlay = 0;
+          update(0);
+        }
+
+        startTime = performance.now();
+        raf = requestAnimationFrame(tick);
+      } else {
+        cancelAnimationFrame(raf);
+        elapsedBeforePlay = Number(seek.value);
+      }
+    }
+
+    play.addEventListener("click", () => {
+      setPlaying(!playing);
+    });
+
+    restart.addEventListener("click", () => {
+      elapsedBeforePlay = 0;
+      update(0);
+
+      if (playing) {
+        startTime = performance.now();
+      }
+    });
+
+    seek.addEventListener("input", () => {
+      elapsedBeforePlay = Number(seek.value);
+      update(elapsedBeforePlay);
+
+      if (playing) {
+        startTime = performance.now();
+      }
+    });
+
+    speed.addEventListener("change", () => {
+      elapsedBeforePlay = Number(seek.value);
+
+      if (playing) {
+        startTime = performance.now();
+      }
+    });
+
+    seek.max = String(script.durationMs);
+
+    drawTree();
+    drawCode();
+    update(0);
+  </script>
+</body>
+</html>
