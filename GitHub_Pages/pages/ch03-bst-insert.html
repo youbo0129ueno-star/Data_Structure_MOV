@@ -441,7 +441,7 @@
       "nil": false,
       "vars": {"x": "6", "y": "NIL", "z": "7"},
       "codeLines": [2, 3],
-      "label": "z = root[T] = 7",
+      "label": "z = root = 7",
       "note": "z は現在見ている頂点を表す．根から下に向かって，x = 6 を入れる位置を探す．"
     },
     {
@@ -456,7 +456,7 @@
       "vars": {"x": "6", "y": "7", "z": "7"},
       "codeLines": [4, 5, 6],
       "label": "y = z, 6 < 7 なので左へ進む",
-      "note": "z が NIL でないので while 内に入る．現在の z = 7 を y に保存し，次に left[7] を調べる．"
+      "note": "z が NULL でないので while 内に入る．現在の z = 7 を y に保存し，次に 7->left を調べる．"
     },
     {
       "at": 4200,
@@ -484,7 +484,7 @@
       "vars": {"x": "6", "y": "4", "z": "4"},
       "codeLines": [4, 5, 7, 8],
       "label": "y = z, 6 > 4 なので右へ進む",
-      "note": "今度は key[x] < key[z] が偽である．したがって z = right[4] として右へ進む．"
+      "note": "今度は x->key < z->key が偽である．したがって z = 4->right として右へ進む．"
     },
     {
       "at": 6600,
@@ -498,7 +498,7 @@
       "vars": {"x": "6", "y": "4", "z": "5"},
       "codeLines": [3],
       "label": "z = 5",
-      "note": "right[4] に移動した．z が NIL ではないので，もう一度比較する．"
+      "note": "4->right に移動した．z が NULL ではないので，もう一度比較する．"
     },
     {
       "at": 7800,
@@ -542,8 +542,8 @@
       "nil": false,
       "vars": {"x": "6", "y": "5", "z": "NIL"},
       "codeLines": [12, 13, 15, 17, 18],
-      "label": "parent[x] = y",
-      "note": "x の親を y に設定する．y は NIL ではなく，6 > 5 なので right[5] = x として接続する．"
+      "label": "x->parent = y",
+      "note": "x の親を y に設定する．y は NULL ではなく，6 > 5 なので 5->right = x として接続する．"
     },
     {
       "at": 10000,
@@ -557,8 +557,8 @@
       "nil": false,
       "vars": {"x": "6", "y": "5", "z": "NIL"},
       "codeLines": [18, 20],
-      "label": "right[5] = x, return root[T]",
-      "note": "6 が 5 の右の子として挿入された．根は変わらないので root[T] = 7 を返す．"
+      "label": "5->right = x, return root",
+      "note": "6 が 5 の右の子として挿入された．根は変わらないので root = 7 を返す．"
     }
   ]
 }

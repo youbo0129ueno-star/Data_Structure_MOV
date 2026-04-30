@@ -461,7 +461,7 @@
       "vars": {"z": "7", "y": "未設定", "x": "未設定"},
       "codeLines": [3, 5, 6],
       "label": "7 は左右の子を持つので後継を探す",
-      "note": "left[7] も right[7] も NIL ではない．したがって else 側に進み，right[7] の中で最小の頂点を y とする．"
+      "note": "7->left も 7->right も NULL ではない．したがって else 側に進み，7->right の中で最小の頂点を y とする．"
     },
     {
       "at": 2600,
@@ -477,8 +477,8 @@
       "nil": false,
       "vars": {"z": "7", "y": "探索中", "x": "未設定"},
       "codeLines": [6],
-      "label": "Tree-Minimum(T, right[7])",
-      "note": "right[7] は 9 である．右部分木に入り，そこから左へ進めるだけ進むと最小値が得られる．"
+      "label": "tree_minimum(7->right)",
+      "note": "7->right は 9 である．右部分木に入り，そこから左へ進めるだけ進むと最小値が得られる．"
     },
     {
       "at": 4000,
@@ -512,8 +512,8 @@
       "nilAt": {"x": 440, "y": 390},
       "vars": {"z": "7", "y": "8", "x": "未設定"},
       "codeLines": [9, 11, 12],
-      "label": "left[8] は NIL なので x = right[8]",
-      "note": "y = 8 の左の子は NIL である．そこで else 側に進み，x = right[y] とする．この例では right[8] も NIL である．"
+      "label": "8->left は NULL なので x = 8->right",
+      "note": "y = 8 の左の子は NULL である．そこで else 側に進み，x = y->right とする．この例では 8->right も NULL である．"
     },
     {
       "at": 6600,
@@ -530,8 +530,8 @@
       "nilAt": {"x": 440, "y": 390},
       "vars": {"z": "7", "y": "8", "x": "NIL"},
       "codeLines": [15],
-      "label": "x = NIL なので parent[x] は更新しない",
-      "note": "x が NIL の場合，親ポインタを更新する対象がない．したがって if x != NIL then の中身は実行されない．"
+      "label": "x = NULL なので x->parent は更新しない",
+      "note": "x が NULL の場合，親ポインタを更新する対象がない．したがって if (x != NULL) の中身は実行されない．"
     },
     {
       "at": 7800,
@@ -547,8 +547,8 @@
       "nil": false,
       "vars": {"z": "7", "y": "8", "x": "NIL"},
       "codeLines": [19, 21, 22],
-      "label": "y は parent[y] の左の子である",
-      "note": "parent[8] は 9 であり，8 は left[9] である．したがって left[parent[y]] = x，つまり left[9] = NIL とする．"
+      "label": "y は y->parent の左の子である",
+      "note": "8->parent は 9 であり，8 は 9->left である．したがって y->parent->left = x，つまり 9->left = NULL とする．"
     },
     {
       "at": 9000,
@@ -565,7 +565,7 @@
       "nilAt": {"x": 440, "y": 320},
       "vars": {"z": "7", "y": "8", "x": "NIL"},
       "codeLines": [22],
-      "label": "left[9] = NIL",
+      "label": "9->left = NULL",
       "note": "後継 y = 8 を，元の位置から切り離した．この段階では 8 はまだメモリ上に存在しているが，木の構造からは外れている．"
     },
     {
@@ -582,7 +582,7 @@
       "nil": false,
       "vars": {"z": "7", "y": "8", "x": "NIL"},
       "codeLines": [27, 28],
-      "label": "y != z なので key[z] = key[y]",
+      "label": "y != z なので z->key = y->key",
       "note": "y は z とは別の頂点である．そこで，後継 y のキー 8 を削除対象 z の位置にコピーする．"
     },
     {
@@ -633,7 +633,7 @@
       "nil": false,
       "vars": {"z": "key=8", "y": "解放済み", "x": "NIL"},
       "codeLines": [32],
-      "label": "return root[T]",
+      "label": "return root",
       "note": "削除後の根を返す．結果として，元の 7 の位置には 8 が入り，9 の左の子は NIL になる．"
     }
   ]

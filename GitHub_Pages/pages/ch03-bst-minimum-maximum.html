@@ -458,7 +458,7 @@
       "nil": false,
       "vars": {"min": "7", "max": "未実行"},
       "codeLines": [0, 1],
-      "label": "Tree-Minimum(T, root) を実行する",
+      "label": "tree_minimum(root) を実行する",
       "note": "二分探索木では，小さいキーは左側にある．したがって最小値は，左の子が NIL になるまで左へ進むことで得られる．"
     },
     {
@@ -477,8 +477,8 @@
       "nil": false,
       "vars": {"min": "7", "max": "未実行"},
       "codeLines": [1, 2],
-      "label": "left[7] != NIL なので左へ進む",
-      "note": "left[7] は 4 である．while 条件が真なので，x = left[x] として x を 4 に更新する．"
+      "label": "7->left != NULL なので左へ進む",
+      "note": "7->left は 4 である．while 条件が真なので，x = x->left として x を 4 に更新する．"
     },
     {
       "at": 2400,
@@ -496,8 +496,8 @@
       "nil": false,
       "vars": {"min": "4", "max": "未実行"},
       "codeLines": [1, 2],
-      "label": "left[4] != NIL なのでさらに左へ進む",
-      "note": "left[4] は 2 である．最小値を探す限り，右側を見る必要はない．"
+      "label": "4->left != NULL なのでさらに左へ進む",
+      "note": "4->left は 2 である．最小値を探す限り，右側を見る必要はない．"
     },
     {
       "at": 3600,
@@ -516,7 +516,7 @@
       "nilAt": {"x": 90, "y": 370},
       "vars": {"min": "2", "max": "未実行"},
       "codeLines": [1],
-      "label": "left[2] == NIL",
+      "label": "2->left == NULL",
       "note": "2 には左の子がない．これ以上小さいキーへ進めないので，現在の x = 2 が最小値である．"
     },
     {
@@ -554,7 +554,7 @@
       "nil": false,
       "vars": {"min": "2", "max": "7"},
       "codeLines": [7, 8],
-      "label": "Tree-Maximum(T, root) を実行する",
+      "label": "tree_maximum(root) を実行する",
       "note": "最大値探索は最小値探索の対称である．大きいキーは右側にあるので，右の子が NIL になるまで右へ進む．"
     },
     {
@@ -573,8 +573,8 @@
       "nil": false,
       "vars": {"min": "2", "max": "7"},
       "codeLines": [8, 9],
-      "label": "right[7] != NIL なので右へ進む",
-      "note": "right[7] は 9 である．while 条件が真なので，x = right[x] として x を 9 に更新する．"
+      "label": "7->right != NULL なので右へ進む",
+      "note": "7->right は 9 である．while 条件が真なので，x = x->right として x を 9 に更新する．"
     },
     {
       "at": 8000,
@@ -592,8 +592,8 @@
       "nil": false,
       "vars": {"min": "2", "max": "9"},
       "codeLines": [8, 9],
-      "label": "right[9] != NIL なのでさらに右へ進む",
-      "note": "right[9] は 16 である．最大値を探す限り，左側を見る必要はない．"
+      "label": "9->right != NULL なのでさらに右へ進む",
+      "note": "9->right は 16 である．最大値を探す限り，左側を見る必要はない．"
     },
     {
       "at": 9200,
@@ -612,7 +612,7 @@
       "nilAt": {"x": 630, "y": 370},
       "vars": {"min": "2", "max": "16"},
       "codeLines": [8],
-      "label": "right[16] == NIL",
+      "label": "16->right == NULL",
       "note": "16 には右の子がない．これ以上大きいキーへ進めないので，現在の x = 16 が最大値である．"
     },
     {

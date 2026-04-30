@@ -357,7 +357,7 @@
       "stack": ["Walk(7)"],
       "output": [],
       "codeLines": [0, 1],
-      "label": "Inorder-Tree-Walk(root) を呼び出す",
+      "label": "inorder_tree_walk(root) を呼び出す",
       "note": "中間順巡回では，左部分木を巡回してから自分を出力し，最後に右部分木を巡回する．"
     },
     {
@@ -370,7 +370,7 @@
       "stack": ["Walk(7)"],
       "output": [],
       "codeLines": [2],
-      "label": "まず left[7] へ再帰する",
+      "label": "まず 7->left へ再帰する",
       "note": "7 をすぐには出力しない．左部分木をすべて処理してから 7 を出力する．"
     },
     {
@@ -397,7 +397,7 @@
       "output": [],
       "codeLines": [0, 1, 2],
       "label": "Walk(2) に入る",
-      "note": "2 の左の子を調べる．left[2] は NIL なので，その呼び出しはすぐに戻る．"
+      "note": "2 の左の子を調べる．2->left は NULL なので，その呼び出しはすぐに戻る．"
     },
     {
       "at": 4600,
@@ -410,8 +410,8 @@
       "stack": ["Walk(7)", "Walk(4)", "Walk(2)", "Walk(NIL)"],
       "output": [],
       "codeLines": [1],
-      "label": "left[2] = NIL",
-      "note": "x = NIL のとき，if x != NIL が偽になるため，何もせずに呼び出し元へ戻る．"
+      "label": "2->left = NULL",
+      "note": "x = NULL のとき，if (x != NULL) が偽になるため，何もせずに呼び出し元へ戻る．"
     },
     {
       "at": 5600,
@@ -423,7 +423,7 @@
       "stack": ["Walk(7)", "Walk(4)", "Walk(2)"],
       "output": ["2"],
       "codeLines": [3],
-      "label": "print key[2]",
+      "label": "printf で 2 を出力する",
       "note": "左部分木の処理が終わったので，現在の頂点 2 を出力する．"
     },
     {
@@ -437,7 +437,7 @@
       "stack": ["Walk(7)", "Walk(4)", "Walk(2)", "Walk(NIL)"],
       "output": ["2"],
       "codeLines": [4, 1],
-      "label": "right[2] = NIL",
+      "label": "2->right = NULL",
       "note": "右の子も NIL なので，Walk(2) は完了し，Walk(4) に戻る．"
     },
     {
@@ -450,7 +450,7 @@
       "stack": ["Walk(7)", "Walk(4)"],
       "output": ["2", "4"],
       "codeLines": [3],
-      "label": "print key[4]",
+      "label": "printf で 4 を出力する",
       "note": "4 の左部分木は処理済みである．したがって 4 を出力する．"
     },
     {
@@ -463,7 +463,7 @@
       "stack": ["Walk(7)", "Walk(4)", "Walk(5)"],
       "output": ["2", "4"],
       "codeLines": [4, 0, 1],
-      "label": "right[4] へ再帰して Walk(5)",
+      "label": "4->right へ再帰して Walk(5)",
       "note": "4 の出力後，右部分木に進む．5 は葉なので，左 NIL，出力，右 NIL の順で終わる．"
     },
     {
@@ -476,7 +476,7 @@
       "stack": ["Walk(7)", "Walk(4)", "Walk(5)"],
       "output": ["2", "4", "5"],
       "codeLines": [3],
-      "label": "print key[5]",
+      "label": "printf で 5 を出力する",
       "note": "5 の左部分木は空なので，5 を出力する．"
     },
     {
@@ -489,7 +489,7 @@
       "stack": ["Walk(7)"],
       "output": ["2", "4", "5", "7"],
       "codeLines": [3],
-      "label": "print key[7]",
+      "label": "printf で 7 を出力する",
       "note": "7 の左部分木全体の巡回が完了した．ここで根 7 を出力する．"
     },
     {
@@ -502,7 +502,7 @@
       "stack": ["Walk(7)", "Walk(9)"],
       "output": ["2", "4", "5", "7"],
       "codeLines": [4, 0, 1, 2],
-      "label": "right[7] へ再帰して Walk(9)",
+      "label": "7->right へ再帰して Walk(9)",
       "note": "根の出力後，右部分木を中間順で巡回する．9 でも，まず左の子 8 に進む．"
     },
     {
@@ -528,7 +528,7 @@
       "stack": ["Walk(7)", "Walk(9)", "Walk(8)"],
       "output": ["2", "4", "5", "7", "8"],
       "codeLines": [3],
-      "label": "print key[8]",
+      "label": "printf で 8 を出力する",
       "note": "8 の左部分木の処理が終わったので，8 を出力する．"
     },
     {
@@ -541,7 +541,7 @@
       "stack": ["Walk(7)", "Walk(9)"],
       "output": ["2", "4", "5", "7", "8", "9"],
       "codeLines": [3],
-      "label": "print key[9]",
+      "label": "printf で 9 を出力する",
       "note": "9 の左部分木が処理済みなので，9 を出力する．"
     },
     {
@@ -554,7 +554,7 @@
       "stack": ["Walk(7)", "Walk(9)", "Walk(16)"],
       "output": ["2", "4", "5", "7", "8", "9"],
       "codeLines": [4, 0, 1],
-      "label": "right[9] へ再帰して Walk(16)",
+      "label": "9->right へ再帰して Walk(16)",
       "note": "最後に 9 の右部分木を処理する．16 は葉なので，そのまま出力まで進む．"
     },
     {
@@ -567,7 +567,7 @@
       "stack": ["Walk(7)", "Walk(9)", "Walk(16)"],
       "output": ["2", "4", "5", "7", "8", "9", "16"],
       "codeLines": [3],
-      "label": "print key[16]",
+      "label": "printf で 16 を出力する",
       "note": "16 を出力する．これで全ての頂点が昇順に出力された．"
     },
     {
