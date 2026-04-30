@@ -285,13 +285,16 @@
     "edges": [["7", "4"], ["7", "9"], ["4", "2"], ["4", "5"], ["9", "8"], ["9", "16"]]
   },
   "code": [
-    "Tree-Search(T, x, a)",
-    "    while x != NIL and key[x] != a do",
-    "        if a < key[x] then",
-    "            x = left[x]",
-    "        else",
-    "            x = right[x]",
-    "    return x"
+    "Node *tree_search(Node *x, int a) {",
+    "    while (x != NULL && x->key != a) {",
+    "        if (a < x->key) {",
+    "            x = x->left;",
+    "        } else {",
+    "            x = x->right;",
+    "        }",
+    "    }",
+    "    return x;",
+    "}"
   ],
   "frames": [
     {
@@ -330,7 +333,7 @@
       "at": 5700,
       "activeNode": "8",
       "visited": ["7", "9", "8"],
-      "codeLines": [6],
+      "codeLines": [8],
       "label": "return x",
       "note": "見つかった頂点 8 を返す."
     }

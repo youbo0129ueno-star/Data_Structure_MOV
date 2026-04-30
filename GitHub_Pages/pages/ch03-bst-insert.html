@@ -378,24 +378,28 @@
     "newEdge": ["5", "6"]
   },
   "code": [
-    "Tree-Insert(T, x)",
-    "    y = NIL",
-    "    z = root[T]",
-    "    while z != NIL do",
-    "        y = z",
-    "        if key[x] < key[z] then",
-    "            z = left[z]",
-    "        else",
-    "            z = right[z]",
+    "Node *tree_insert(Node *root, Node *x) {",
+    "    Node *y = NULL;",
+    "    Node *z = root;",
+    "    while (z != NULL) {",
+    "        y = z;",
+    "        if (x->key < z->key) {",
+    "            z = z->left;",
+    "        } else {",
+    "            z = z->right;",
+    "        }",
+    "    }",
     "",
-    "    parent[x] = y",
-    "    if y == NIL then",
-    "        root[T] = x",
-    "    else if key[x] < key[y] then",
-    "        left[y] = x",
-    "    else",
-    "        right[y] = x",
-    "    return root[T]"
+    "    x->parent = y;",
+    "    if (y == NULL) {",
+    "        root = x;",
+    "    } else if (x->key < y->key) {",
+    "        y->left = x;",
+    "    } else {",
+    "        y->right = x;",
+    "    }",
+    "    return root;",
+    "}"
   ],
   "frames": [
     {
@@ -537,7 +541,7 @@
       "path": ["7", "4", "5"],
       "nil": false,
       "vars": {"x": "6", "y": "5", "z": "NIL"},
-      "codeLines": [10, 11, 13, 15, 16],
+      "codeLines": [12, 13, 15, 17, 18],
       "label": "parent[x] = y",
       "note": "x の親を y に設定する．y は NIL ではなく，6 > 5 なので right[5] = x として接続する．"
     },
@@ -552,7 +556,7 @@
       "path": ["7", "4", "5", "6"],
       "nil": false,
       "vars": {"x": "6", "y": "5", "z": "NIL"},
-      "codeLines": [16, 17],
+      "codeLines": [18, 20],
       "label": "right[5] = x, return root[T]",
       "note": "6 が 5 の右の子として挿入された．根は変わらないので root[T] = 7 を返す．"
     }

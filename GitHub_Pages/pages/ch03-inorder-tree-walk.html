@@ -338,11 +338,13 @@
     "edges": [["7", "4"], ["7", "9"], ["4", "2"], ["4", "5"], ["9", "8"], ["9", "16"]]
   },
   "code": [
-    "Inorder-Tree-Walk(x)",
-    "    if x != NIL then",
-    "        Inorder-Tree-Walk(left[x])",
-    "        print key[x]",
-    "        Inorder-Tree-Walk(right[x])"
+    "void inorder_tree_walk(Node *x) {",
+    "    if (x != NULL) {",
+    "        inorder_tree_walk(x->left);",
+    "        printf(\"%d\\n\", x->key);",
+    "        inorder_tree_walk(x->right);",
+    "    }",
+    "}"
   ],
   "frames": [
     {

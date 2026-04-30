@@ -427,15 +427,19 @@
     "edges": [["7", "4"], ["7", "9"], ["4", "2"], ["4", "5"], ["9", "8"], ["9", "16"]]
   },
   "code": [
-    "Tree-Minimum(T, x)",
-    "    while left[x] != NIL do",
-    "        x = left[x]",
-    "    return x",
+    "Node *tree_minimum(Node *x) {",
+    "    while (x->left != NULL) {",
+    "        x = x->left;",
+    "    }",
+    "    return x;",
+    "}",
     "",
-    "Tree-Maximum(T, x)",
-    "    while right[x] != NIL do",
-    "        x = right[x]",
-    "    return x"
+    "Node *tree_maximum(Node *x) {",
+    "    while (x->right != NULL) {",
+    "        x = x->right;",
+    "    }",
+    "    return x;",
+    "}"
   ],
   "frames": [
     {
@@ -530,7 +534,7 @@
       "activeEdgeMax": null,
       "nil": false,
       "vars": {"min": "2", "max": "未実行"},
-      "codeLines": [3],
+      "codeLines": [4],
       "label": "return x",
       "note": "Tree-Minimum は頂点 2 を返す．根から左へ進み続けた先が最小値である．"
     },
@@ -549,7 +553,7 @@
       "activeEdgeMax": null,
       "nil": false,
       "vars": {"min": "2", "max": "7"},
-      "codeLines": [5, 6],
+      "codeLines": [7, 8],
       "label": "Tree-Maximum(T, root) を実行する",
       "note": "最大値探索は最小値探索の対称である．大きいキーは右側にあるので，右の子が NIL になるまで右へ進む．"
     },
@@ -568,7 +572,7 @@
       "activeEdgeMax": ["7", "9"],
       "nil": false,
       "vars": {"min": "2", "max": "7"},
-      "codeLines": [6, 7],
+      "codeLines": [8, 9],
       "label": "right[7] != NIL なので右へ進む",
       "note": "right[7] は 9 である．while 条件が真なので，x = right[x] として x を 9 に更新する．"
     },
@@ -587,7 +591,7 @@
       "activeEdgeMax": ["9", "16"],
       "nil": false,
       "vars": {"min": "2", "max": "9"},
-      "codeLines": [6, 7],
+      "codeLines": [8, 9],
       "label": "right[9] != NIL なのでさらに右へ進む",
       "note": "right[9] は 16 である．最大値を探す限り，左側を見る必要はない．"
     },
@@ -607,7 +611,7 @@
       "nil": true,
       "nilAt": {"x": 630, "y": 370},
       "vars": {"min": "2", "max": "16"},
-      "codeLines": [6],
+      "codeLines": [8],
       "label": "right[16] == NIL",
       "note": "16 には右の子がない．これ以上大きいキーへ進めないので，現在の x = 16 が最大値である．"
     },
@@ -626,7 +630,7 @@
       "activeEdgeMax": null,
       "nil": false,
       "vars": {"min": "2", "max": "16"},
-      "codeLines": [8],
+      "codeLines": [11],
       "label": "return x",
       "note": "Tree-Maximum は頂点 16 を返す．最小値は最左端，最大値は最右端にある．"
     }
