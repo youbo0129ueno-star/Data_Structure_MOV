@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ch02-list-search</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #64748b;
+      --panel: #f8fafc;
+      --line: #cbd5e1;
+      --active: #2563eb;
+      --visited: #16a34a;
+      --code: #eef2ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+      color: var(--ink);
+      background: #ffffff;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(420px, 1.1fr) minmax(320px, 0.9fr);
+      gap: 24px;
+      width: min(1120px, calc(100vw - 32px));
+      margin: 24px auto;
+      align-items: start;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.25;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    button,
+    select {
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button:hover,
+    select:hover {
+      border-color: var(--active);
+      color: var(--active);
+    }
+
+    .speed-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    input[type="range"] {
+      width: 220px;
+    }
+
+    .stage,
+    .side {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .stage {
+      padding: 18px;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      aspect-ratio: 720 / 360;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+
+    .arrow {
+      stroke: #94a3b8;
+      stroke-width: 3;
+      stroke-linecap: round;
+      fill: none;
+    }
+
+    .arrow.active {
+      stroke: var(--active);
+      stroke-width: 5;
+    }
+
+    .cell rect {
+      fill: #ffffff;
+      stroke: #94a3b8;
+      stroke-width: 3;
+      rx: 8;
+      transition: fill 180ms ease, stroke 180ms ease;
+    }
+
+    .cell text {
+      font-size: 24px;
+      font-weight: 700;
+      fill: var(--ink);
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .cell.visited rect {
+      fill: #dcfce7;
+      stroke: var(--visited);
+    }
+
+    .cell.active rect {
+      fill: #dbeafe;
+      stroke: var(--active);
+      stroke-width: 5;
+    }
+
+    .label-text {
+      font-size: 18px;
+      font-weight: 700;
+      fill: var(--ink);
+    }
+
+    .pointer {
+      font-size: 16px;
+      font-weight: 700;
+      text-anchor: middle;
+      fill: var(--active);
+    }
+
+    .message {
+      margin-top: 14px;
+      min-height: 96px;
+      padding: 14px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+
+    .label {
+      margin: 0 0 8px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .note {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .vars {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .var {
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 14px;
+    }
+
+    .var strong {
+      display: inline-block;
+      min-width: 3em;
+    }
+
+    .side {
+      padding: 16px;
+    }
+
+    pre {
+      margin: 0;
+      overflow-x: auto;
+      font-size: 14px;
+      line-height: 1.6;
+      counter-reset: line;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    .line {
+      display: block;
+      min-height: 22px;
+      padding: 0 8px;
+      border-left: 3px solid transparent;
+      white-space: pre;
+    }
+
+    .line::before {
+      counter-increment: line;
+      content: counter(line);
+      display: inline-block;
+      width: 2ch;
+      margin-right: 16px;
+      color: #94a3b8;
+      text-align: right;
+    }
+
+    .line.active {
+      background: var(--code);
+      border-left-color: var(--active);
+    }
+
+    @media (max-width: 820px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .controls {
+        justify-content: flex-start;
+      }
+
+      .vars {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <header>
+      <h1>ch02-list-search</h1>
+
+      <div class="controls" aria-label="再生コントロール">
+        <button id="play" type="button">再生</button>
+        <button id="restart" type="button">最初へ</button>
+
+        <label class="speed-label">
+          速度
+          <select id="speed" aria-label="再生速度">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1.0x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2.0x</option>
+          </select>
+        </label>
+
+        <input id="seek" type="range" min="0" max="7200" value="0" step="20" aria-label="再生位置">
+      </div>
+    </header>
+
+    <section class="stage">
+      <svg id="list" viewBox="0 0 720 360" role="img" aria-label="線形リスト探索のアニメーション"></svg>
+
+      <div class="message">
+        <p id="label" class="label"></p>
+        <p id="note" class="note"></p>
+        <div class="vars" aria-label="変数の状態">
+          <div class="var"><strong>a</strong> = <span id="varA"></span></div>
+          <div class="var"><strong>x</strong> = <span id="varX"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <pre><code id="code"></code></pre>
+    </aside>
+  </main>
+
+  <script id="framescript" type="application/json">
+{
+  "title": "ch02-list-search",
+  "durationMs": 7200,
+  "layout": {
+    "cells": [
+      {"id": "c2", "x": 120, "y": 170, "value": "4"},
+      {"id": "c5", "x": 320, "y": 170, "value": "9"},
+      {"id": "c7", "x": 520, "y": 170, "value": "16"}
+    ],
+    "links": [["c2", "c5"], ["c5", "c7"]]
+  },
+  "code": [
+    "int list_search(List L, int head, int a) {",
+    "    int x = head;",
+    "    while (x != NIL && L.key[x] != a) {",
+    "        x = L.next[x];",
+    "    }",
+    "    return x;",
+    "}"
+  ],
+  "frames": [
+    {
+      "at": 0,
+      "activeCell": "c2",
+      "visited": ["c2"],
+      "activeLink": null,
+      "pointerX": "c2",
+      "codeLines": [0, 1, 2],
+      "vars": {"a": "9", "x": "head = c2"},
+      "label": "x を head で初期化する",
+      "note": "探索は先頭セルから始める."
+    },
+    {
+      "at": 1500,
+      "activeCell": "c2",
+      "visited": ["c2"],
+      "activeLink": ["c2", "c5"],
+      "pointerX": "c2",
+      "codeLines": [2, 3],
+      "vars": {"a": "9", "x": "c2"},
+      "label": "L.key[c2] = 4 は 9 ではない",
+      "note": "while 条件が真なので, x = L.next[x] で次のセルへ進む."
+    },
+    {
+      "at": 3200,
+      "activeCell": "c5",
+      "visited": ["c2", "c5"],
+      "activeLink": null,
+      "pointerX": "c5",
+      "codeLines": [2],
+      "vars": {"a": "9", "x": "c5"},
+      "label": "x = c5 に到達する",
+      "note": "現在地 c5 の key は 9 なので, while 条件 L.key[x] != a が偽になる."
+    },
+    {
+      "at": 5000,
+      "activeCell": "c5",
+      "visited": ["c2", "c5"],
+      "activeLink": null,
+      "pointerX": "c5",
+      "codeLines": [5],
+      "vars": {"a": "9", "x": "c5"},
+      "label": "return x",
+      "note": "見つかったセル c5 を返す."
+    }
+  ]
+}
+  </script>
+
+  <script>
+    const script = JSON.parse(document.getElementById("framescript").textContent);
+
+    const svg = document.getElementById("list");
+    const code = document.getElementById("code");
+    const label = document.getElementById("label");
+    const note = document.getElementById("note");
+    const varA = document.getElementById("varA");
+    const varX = document.getElementById("varX");
+
+    const play = document.getElementById("play");
+    const restart = document.getElementById("restart");
+    const seek = document.getElementById("seek");
+    const speed = document.getElementById("speed");
+
+    const cellEls = new Map();
+    const linkEls = new Map();
+    let pointerXEl = null;
+
+    let startTime = 0;
+    let elapsedBeforePlay = 0;
+    let raf = 0;
+    let playing = false;
+
+    function svgEl(name) {
+      return document.createElementNS("http://www.w3.org/2000/svg", name);
+    }
+
+    function linkKey(from, to) {
+      return `${from}->${to}`;
+    }
+
+    function drawList() {
+      const defs = svgEl("defs");
+      const marker = svgEl("marker");
+      const markerActive = svgEl("marker");
+      const arrow = svgEl("path");
+      const arrowActive = svgEl("path");
+
+      marker.setAttribute("id", "arrow");
+      marker.setAttribute("viewBox", "0 0 10 10");
+      marker.setAttribute("refX", "9");
+      marker.setAttribute("refY", "5");
+      marker.setAttribute("markerWidth", "7");
+      marker.setAttribute("markerHeight", "7");
+      marker.setAttribute("orient", "auto-start-reverse");
+      arrow.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+      arrow.setAttribute("fill", "#94a3b8");
+      marker.append(arrow);
+
+      markerActive.setAttribute("id", "arrow-active");
+      markerActive.setAttribute("viewBox", "0 0 10 10");
+      markerActive.setAttribute("refX", "9");
+      markerActive.setAttribute("refY", "5");
+      markerActive.setAttribute("markerWidth", "7");
+      markerActive.setAttribute("markerHeight", "7");
+      markerActive.setAttribute("orient", "auto-start-reverse");
+      arrowActive.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+      arrowActive.setAttribute("fill", "#2563eb");
+      markerActive.append(arrowActive);
+
+      defs.append(marker, markerActive);
+      svg.append(defs);
+
+      const headLabel = svgEl("text");
+      headLabel.setAttribute("x", "72");
+      headLabel.setAttribute("y", "60");
+      headLabel.setAttribute("class", "label-text");
+      headLabel.textContent = "head";
+      svg.append(headLabel);
+
+      const headArrow = svgEl("line");
+      headArrow.setAttribute("class", "arrow");
+      headArrow.setAttribute("x1", "110");
+      headArrow.setAttribute("y1", "72");
+      headArrow.setAttribute("x2", "150");
+      headArrow.setAttribute("y2", "115");
+      headArrow.setAttribute("marker-end", "url(#arrow)");
+      svg.append(headArrow);
+
+      for (const [from, to] of script.layout.links) {
+        const a = script.layout.cells.find((cell) => cell.id === from);
+        const b = script.layout.cells.find((cell) => cell.id === to);
+        const line = svgEl("line");
+        line.setAttribute("class", "arrow");
+        line.setAttribute("x1", a.x + 48);
+        line.setAttribute("y1", a.y);
+        line.setAttribute("x2", b.x - 48);
+        line.setAttribute("y2", b.y);
+        line.setAttribute("marker-end", "url(#arrow)");
+        svg.append(line);
+        linkEls.set(linkKey(from, to), line);
+      }
+
+      const nilLine = svgEl("line");
+      nilLine.setAttribute("class", "arrow");
+      nilLine.setAttribute("x1", "568");
+      nilLine.setAttribute("y1", "170");
+      nilLine.setAttribute("x2", "650");
+      nilLine.setAttribute("y2", "170");
+      nilLine.setAttribute("marker-end", "url(#arrow)");
+      svg.append(nilLine);
+
+      const nilText = svgEl("text");
+      nilText.setAttribute("x", "664");
+      nilText.setAttribute("y", "176");
+      nilText.setAttribute("class", "label-text");
+      nilText.textContent = "NIL";
+      svg.append(nilText);
+
+      for (const cell of script.layout.cells) {
+        const group = svgEl("g");
+        const rect = svgEl("rect");
+        const text = svgEl("text");
+
+        group.setAttribute("class", "cell");
+        group.setAttribute("transform", `translate(${cell.x - 48} ${cell.y - 36})`);
+
+        rect.setAttribute("width", "96");
+        rect.setAttribute("height", "72");
+        text.setAttribute("x", "48");
+        text.setAttribute("y", "38");
+        text.textContent = cell.value;
+
+        group.append(rect, text);
+        svg.append(group);
+        cellEls.set(cell.id, group);
+      }
+
+      pointerXEl = svgEl("text");
+      pointerXEl.setAttribute("class", "pointer");
+      svg.append(pointerXEl);
+    }
+
+    function drawCode() {
+      code.innerHTML = "";
+      script.code.forEach((line) => {
+        const span = document.createElement("span");
+        span.className = "line";
+        span.textContent = line;
+        code.append(span);
+      });
+    }
+
+    function frameAt(ms) {
+      return script.frames.reduce(
+        (current, frame) => frame.at <= ms ? frame : current,
+        script.frames[0]
+      );
+    }
+
+    function render(ms) {
+      const frame = frameAt(ms);
+
+      for (const [id, group] of cellEls.entries()) {
+        const classes = ["cell"];
+        if (frame.visited.includes(id)) {
+          classes.push("visited");
+        }
+        if (frame.activeCell === id) {
+          classes.push("active");
+        }
+        group.setAttribute("class", classes.join(" "));
+      }
+
+      for (const [key, line] of linkEls.entries()) {
+        const active = frame.activeLink && key === linkKey(frame.activeLink[0], frame.activeLink[1]);
+        line.setAttribute("class", active ? "arrow active" : "arrow");
+        line.setAttribute("marker-end", active ? "url(#arrow-active)" : "url(#arrow)");
+      }
+
+      if (frame.pointerX) {
+        const cell = script.layout.cells.find((item) => item.id === frame.pointerX);
+        pointerXEl.textContent = "x";
+        pointerXEl.setAttribute("x", cell.x);
+        pointerXEl.setAttribute("y", String(cell.y + 88));
+      }
+
+      label.textContent = frame.label;
+      note.textContent = frame.note;
+      varA.textContent = frame.vars.a;
+      varX.textContent = frame.vars.x;
+
+      [...code.children].forEach((line, index) => {
+        line.classList.toggle("active", frame.codeLines.includes(index));
+      });
+
+      seek.value = String(ms);
+    }
+
+    function stop() {
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+      playing = false;
+      play.textContent = "再生";
+    }
+
+    function tick(now) {
+      const rate = Number(speed.value);
+      const elapsed = Math.min((now - startTime) * rate + elapsedBeforePlay, script.durationMs);
+      render(elapsed);
+
+      if (elapsed >= script.durationMs) {
+        elapsedBeforePlay = script.durationMs;
+        stop();
+        return;
+      }
+
+      raf = requestAnimationFrame(tick);
+    }
+
+    play.addEventListener("click", () => {
+      if (playing) {
+        elapsedBeforePlay = Number(seek.value);
+        stop();
+        return;
+      }
+
+      playing = true;
+      play.textContent = "停止";
+      startTime = performance.now();
+      elapsedBeforePlay = Number(seek.value);
+      raf = requestAnimationFrame(tick);
+    });
+
+    restart.addEventListener("click", () => {
+      stop();
+      elapsedBeforePlay = 0;
+      render(0);
+    });
+
+    seek.addEventListener("input", (event) => {
+      const value = Number(event.target.value);
+      elapsedBeforePlay = value;
+      render(value);
+
+      if (playing) {
+        startTime = performance.now();
+      }
+    });
+
+    drawList();
+    drawCode();
+    render(0);
+  </script>
+</body>
+</html>

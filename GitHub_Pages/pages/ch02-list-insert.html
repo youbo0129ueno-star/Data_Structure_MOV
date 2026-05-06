@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ch02-list-insert</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #64748b;
+      --panel: #f8fafc;
+      --line: #cbd5e1;
+      --active: #2563eb;
+      --visited: #16a34a;
+      --insert: #f97316;
+      --code: #eef2ff;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+      color: var(--ink);
+      background: #ffffff;
+    }
+    main {
+      display: grid;
+      grid-template-columns: minmax(420px, 1.1fr) minmax(320px, 0.9fr);
+      gap: 24px;
+      width: min(1120px, calc(100vw - 32px));
+      margin: 24px auto;
+      align-items: start;
+    }
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 14px;
+    }
+    h1 { margin: 0; font-size: 24px; line-height: 1.25; }
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    button, select {
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+    button:hover, select:hover {
+      border-color: var(--active);
+      color: var(--active);
+    }
+    .speed-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    input[type="range"] { width: 220px; }
+    .stage, .side {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+    .stage { padding: 18px; }
+    svg {
+      display: block;
+      width: 100%;
+      aspect-ratio: 720 / 380;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+    .arrow {
+      stroke: #94a3b8;
+      stroke-width: 3;
+      stroke-linecap: round;
+      fill: none;
+    }
+    .arrow.active {
+      stroke: var(--insert);
+      stroke-width: 5;
+    }
+    .arrow.preview {
+      stroke: var(--insert);
+      stroke-width: 4;
+      stroke-dasharray: 8 7;
+    }
+    .cell rect {
+      fill: #ffffff;
+      stroke: #94a3b8;
+      stroke-width: 3;
+      rx: 8;
+    }
+    .cell text {
+      font-size: 24px;
+      font-weight: 700;
+      fill: var(--ink);
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+    .cell.focus rect {
+      fill: #dbeafe;
+      stroke: var(--active);
+      stroke-width: 5;
+    }
+    .cell.target rect {
+      fill: #ffedd5;
+      stroke: var(--insert);
+      stroke-width: 5;
+    }
+    .cell.ghost rect {
+      fill: #ffffff;
+      stroke: #cbd5e1;
+      stroke-width: 3;
+      stroke-dasharray: 7 6;
+      opacity: 0.75;
+    }
+    .cell.ghost text {
+      fill: #94a3b8;
+    }
+    .pointer {
+      font-size: 16px;
+      font-weight: 700;
+      text-anchor: middle;
+    }
+    .pointer-p { fill: var(--active); }
+    .pointer-q { fill: #16a34a; }
+    .pointer-x { fill: var(--insert); }
+    .message {
+      margin-top: 14px;
+      min-height: 108px;
+      padding: 14px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+    .label { margin: 0 0 8px; font-size: 18px; font-weight: 700; }
+    .note { margin: 0; color: var(--muted); line-height: 1.65; }
+    .vars {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .var {
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 14px;
+    }
+    .var strong { display: inline-block; min-width: 2em; }
+    .side { padding: 16px; }
+    pre {
+      margin: 0;
+      overflow-x: auto;
+      font-size: 14px;
+      line-height: 1.6;
+      counter-reset: line;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+    .line {
+      display: block;
+      min-height: 22px;
+      padding: 0 8px;
+      border-left: 3px solid transparent;
+      white-space: pre;
+    }
+    .line::before {
+      counter-increment: line;
+      content: counter(line);
+      display: inline-block;
+      width: 2ch;
+      margin-right: 16px;
+      color: #94a3b8;
+      text-align: right;
+    }
+    .line.active {
+      background: var(--code);
+      border-left-color: var(--active);
+    }
+    @media (max-width: 820px) {
+      main { grid-template-columns: 1fr; }
+      header { align-items: flex-start; flex-direction: column; }
+      .controls { justify-content: flex-start; }
+      .vars { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>ch02-list-insert</h1>
+      <div class="controls" aria-label="再生コントロール">
+        <button id="play" type="button">再生</button>
+        <button id="restart" type="button">最初へ</button>
+        <label class="speed-label">速度
+          <select id="speed" aria-label="再生速度">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1.0x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2.0x</option>
+          </select>
+        </label>
+        <input id="seek" type="range" min="0" max="8400" value="0" step="20" aria-label="再生位置">
+      </div>
+    </header>
+
+    <section class="stage">
+      <svg id="list" viewBox="0 0 720 380" role="img" aria-label="線形リスト挿入のアニメーション"></svg>
+      <div class="message">
+        <p id="label" class="label"></p>
+        <p id="note" class="note"></p>
+        <div class="vars" aria-label="変数の状態">
+          <div class="var"><strong>p</strong> = <span id="varP"></span></div>
+          <div class="var"><strong>q</strong> = <span id="varQ"></span></div>
+          <div class="var"><strong>x</strong> = <span id="varX"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <pre><code id="code"></code></pre>
+    </aside>
+  </main>
+
+  <script id="framescript" type="application/json">
+{
+  "durationMs": 8400,
+  "layout": {
+    "cells": {
+      "c4": {"x": 120, "y": 160, "value": "4"},
+      "c9": {"x": 300, "y": 160, "value": "9"},
+      "c16": {"x": 480, "y": 160, "value": "16"},
+      "x": {"x": 390, "y": 285, "value": "6"}
+    },
+    "stableLinks": [["c4", "c9"]],
+    "states": {
+      "before": [["c4", "c9"], ["c9", "c16"]],
+      "after": [["c4", "c9"], ["c9", "x"], ["x", "c16"]]
+    }
+  },
+  "code": [
+    "int list_insert(List L, int head, int p, int x) {",
+    "    int q;",
+    "    if (p != NIL) {",
+    "        q = L.next[p];",
+    "    } else {",
+    "        q = head;",
+    "    }",
+    "",
+    "    L.prev[x] = p;",
+    "    L.next[x] = q;",
+    "",
+    "    if (p != NIL) {",
+    "        L.next[p] = x;",
+    "    } else {",
+    "        head = x;",
+    "    }",
+    "",
+    "    if (q != NIL) {",
+    "        L.prev[q] = x;",
+    "    }",
+    "    return head;",
+    "}"
+  ],
+  "frames": [
+    {
+      "at": 0,
+      "state": "before",
+      "focus": ["c9", "c16"],
+      "target": [],
+      "ghost": ["x"],
+      "p": "c9",
+      "q": "未設定",
+      "x": "新セル",
+      "previewLinks": [],
+      "codeLines": [0, 1, 2, 3],
+      "label": "q = L.next[p] を計算する",
+      "note": "p は値 9 のセルである. まず, その次にあるセル q を取り出す."
+    },
+    {
+      "at": 1800,
+      "state": "before",
+      "focus": ["c9", "c16"],
+      "target": [],
+      "ghost": ["x"],
+      "p": "c9",
+      "q": "c16",
+      "x": "新セル",
+      "previewLinks": [],
+      "codeLines": [8, 9],
+      "label": "L.prev[x] = p, L.next[x] = q",
+      "note": "新セル x 自身に, 前後のつながりを覚えさせる."
+    },
+    {
+      "at": 3600,
+      "state": "before",
+      "focus": ["c9", "c16"],
+      "target": ["x"],
+      "ghost": [],
+      "p": "c9",
+      "q": "c16",
+      "x": "6",
+      "previewLinks": [["c9", "x"], ["x", "c16"]],
+      "codeLines": [8, 9, 11, 12],
+      "label": "x が p と q の間に入る準備ができる",
+      "note": "この時点では本体リストはまだ c9 -> c16 のままである. ただし, x の前後候補は定まった."
+    },
+    {
+      "at": 5600,
+      "state": "after",
+      "focus": ["c9", "c16"],
+      "target": ["x"],
+      "ghost": [],
+      "p": "c9",
+      "q": "c16",
+      "x": "6",
+      "previewLinks": [],
+      "codeLines": [11, 12, 17, 18],
+      "label": "L.next[p] = x, L.prev[q] = x",
+      "note": "本体リスト側のポインタを書き換えると, つながりは c9 -> x -> c16 に置き換わる."
+    },
+    {
+      "at": 7400,
+      "state": "after",
+      "focus": [],
+      "target": ["x"],
+      "ghost": [],
+      "p": "c9",
+      "q": "c16",
+      "x": "6",
+      "previewLinks": [],
+      "codeLines": [20],
+      "label": "return head",
+      "note": "途中挿入なので head 自体は変わらず, 更新後のリストだけが返る."
+    }
+  ]
+}
+  </script>
+  <script>
+    const script = JSON.parse(document.getElementById("framescript").textContent);
+    const svg = document.getElementById("list");
+    const code = document.getElementById("code");
+    const label = document.getElementById("label");
+    const note = document.getElementById("note");
+    const varP = document.getElementById("varP");
+    const varQ = document.getElementById("varQ");
+    const varX = document.getElementById("varX");
+    const play = document.getElementById("play");
+    const restart = document.getElementById("restart");
+    const seek = document.getElementById("seek");
+    const speed = document.getElementById("speed");
+
+    const cellEls = new Map();
+    const stateLinkEls = new Map();
+    const previewLinkEls = [];
+    const pointerEls = new Map();
+    let startTime = 0;
+    let elapsedBeforePlay = 0;
+    let raf = 0;
+    let playing = false;
+
+    function svgEl(name) {
+      return document.createElementNS("http://www.w3.org/2000/svg", name);
+    }
+
+    function marker(id, color) {
+      const markerEl = svgEl("marker");
+      const path = svgEl("path");
+      markerEl.setAttribute("id", id);
+      markerEl.setAttribute("viewBox", "0 0 10 10");
+      markerEl.setAttribute("refX", "9");
+      markerEl.setAttribute("refY", "5");
+      markerEl.setAttribute("markerWidth", "7");
+      markerEl.setAttribute("markerHeight", "7");
+      markerEl.setAttribute("orient", "auto-start-reverse");
+      path.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+      path.setAttribute("fill", color);
+      markerEl.append(path);
+      return markerEl;
+    }
+
+    function drawArrow(from, to, className, markerId) {
+      const line = svgEl("line");
+      line.setAttribute("class", className);
+      line.setAttribute("x1", from.x);
+      line.setAttribute("y1", from.y);
+      line.setAttribute("x2", to.x);
+      line.setAttribute("y2", to.y);
+      line.setAttribute("marker-end", `url(#${markerId})`);
+      return line;
+    }
+
+    function center(id) {
+      const c = script.layout.cells[id];
+      return { x: c.x, y: c.y };
+    }
+
+    function edgeEndpoints(fromId, toId) {
+      const from = center(fromId);
+      const to = center(toId);
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const length = Math.hypot(dx, dy);
+      const ux = dx / length;
+      const uy = dy / length;
+      return {
+        from: { x: from.x + ux * 48, y: from.y + uy * 36 },
+        to: { x: to.x - ux * 48, y: to.y - uy * 36 }
+      };
+    }
+
+    function draw() {
+      const defs = svgEl("defs");
+      defs.append(marker("arrow", "#94a3b8"), marker("arrow-active", "#f97316"));
+      svg.append(defs);
+
+      const headLabel = svgEl("text");
+      headLabel.setAttribute("x", "72");
+      headLabel.setAttribute("y", "60");
+      headLabel.setAttribute("class", "pointer pointer-p");
+      headLabel.textContent = "head";
+      svg.append(headLabel);
+
+      const headArrow = svgEl("line");
+      headArrow.setAttribute("class", "arrow");
+      headArrow.setAttribute("x1", "110");
+      headArrow.setAttribute("y1", "72");
+      headArrow.setAttribute("x2", "150");
+      headArrow.setAttribute("y2", "122");
+      headArrow.setAttribute("marker-end", "url(#arrow)");
+      svg.append(headArrow);
+
+      for (const [name, links] of Object.entries(script.layout.states)) {
+        const lines = links.map(([fromId, toId]) => {
+          const edge = edgeEndpoints(fromId, toId);
+          const line = drawArrow(edge.from, edge.to, "arrow", "arrow");
+          svg.append(line);
+          return line;
+        });
+        stateLinkEls.set(name, lines);
+      }
+
+      for (const cell of Object.values(script.layout.cells)) {
+        const group = svgEl("g");
+        const rect = svgEl("rect");
+        const text = svgEl("text");
+        group.setAttribute("class", "cell");
+        group.setAttribute("transform", `translate(${cell.x - 48} ${cell.y - 36})`);
+        rect.setAttribute("width", "96");
+        rect.setAttribute("height", "72");
+        text.setAttribute("x", "48");
+        text.setAttribute("y", "38");
+        text.textContent = cell.value;
+        group.append(rect, text);
+        svg.append(group);
+        cellEls.set(cell.value === "6" ? "x" : `c${cell.value}`, group);
+      }
+
+      [["p", "pointer-p"], ["q", "pointer-q"], ["x", "pointer-x"]].forEach(([id, cls]) => {
+        const text = svgEl("text");
+        text.setAttribute("class", `pointer ${cls}`);
+        text.textContent = id;
+        svg.append(text);
+        pointerEls.set(id, text);
+      });
+    }
+
+    function drawCode() {
+      code.innerHTML = "";
+      script.code.forEach((line) => {
+        const span = document.createElement("span");
+        span.className = "line";
+        span.textContent = line;
+        code.append(span);
+      });
+    }
+
+    function frameAt(ms) {
+      return script.frames.reduce((current, frame) => frame.at <= ms ? frame : current, script.frames[0]);
+    }
+
+    function render(ms) {
+      const frame = frameAt(ms);
+
+      for (const [state, lines] of stateLinkEls.entries()) {
+        lines.forEach((line) => {
+          line.style.display = state === frame.state ? "block" : "none";
+        });
+      }
+
+      previewLinkEls.splice(0).forEach((line) => line.remove());
+      frame.previewLinks.forEach(([fromId, toId]) => {
+        const edge = edgeEndpoints(fromId, toId);
+        const line = drawArrow(edge.from, edge.to, "arrow preview", "arrow-active");
+        svg.insertBefore(line, svg.lastChild);
+        previewLinkEls.push(line);
+      });
+
+      for (const [id, group] of cellEls.entries()) {
+        const classes = ["cell"];
+        if (frame.focus.includes(id)) {
+          classes.push("focus");
+        }
+        if (frame.target.includes(id)) {
+          classes.push("target");
+        }
+        if (frame.ghost.includes(id)) {
+          classes.push("ghost");
+        }
+        group.setAttribute("class", classes.join(" "));
+      }
+
+      const positions = {
+        "c9": { x: 300, y: 108 },
+        "c16": { x: 480, y: 108 },
+        "x": { x: 390, y: 233 }
+      };
+
+      pointerEls.get("p").setAttribute("x", positions.c9.x);
+      pointerEls.get("p").setAttribute("y", positions.c9.y);
+
+      if (frame.q === "c16") {
+        pointerEls.get("q").setAttribute("x", positions.c16.x);
+        pointerEls.get("q").setAttribute("y", positions.c16.y);
+        pointerEls.get("q").style.display = "block";
+      } else {
+        pointerEls.get("q").style.display = "none";
+      }
+
+      pointerEls.get("x").setAttribute("x", positions.x.x);
+      pointerEls.get("x").setAttribute("y", positions.x.y);
+
+      label.textContent = frame.label;
+      note.textContent = frame.note;
+      varP.textContent = frame.p;
+      varQ.textContent = frame.q;
+      varX.textContent = frame.x;
+
+      [...code.children].forEach((line, index) => {
+        line.classList.toggle("active", frame.codeLines.includes(index));
+      });
+
+      seek.value = String(ms);
+    }
+
+    function stop() {
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+      playing = false;
+      play.textContent = "再生";
+    }
+
+    function tick(now) {
+      const rate = Number(speed.value);
+      const elapsed = Math.min((now - startTime) * rate + elapsedBeforePlay, script.durationMs);
+      render(elapsed);
+      if (elapsed >= script.durationMs) {
+        elapsedBeforePlay = script.durationMs;
+        stop();
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    }
+
+    play.addEventListener("click", () => {
+      if (playing) {
+        elapsedBeforePlay = Number(seek.value);
+        stop();
+        return;
+      }
+      playing = true;
+      play.textContent = "停止";
+      startTime = performance.now();
+      elapsedBeforePlay = Number(seek.value);
+      raf = requestAnimationFrame(tick);
+    });
+
+    restart.addEventListener("click", () => {
+      stop();
+      elapsedBeforePlay = 0;
+      render(0);
+    });
+
+    seek.addEventListener("input", (event) => {
+      const value = Number(event.target.value);
+      elapsedBeforePlay = value;
+      render(value);
+      if (playing) {
+        startTime = performance.now();
+      }
+    });
+
+    draw();
+    drawCode();
+    render(0);
+  </script>
+</body>
+</html>

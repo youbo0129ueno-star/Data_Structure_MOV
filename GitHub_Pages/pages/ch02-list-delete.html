@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ch02-list-delete</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #64748b;
+      --panel: #f8fafc;
+      --line: #cbd5e1;
+      --active: #2563eb;
+      --delete: #dc2626;
+      --keep: #16a34a;
+      --code: #eef2ff;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+      color: var(--ink);
+      background: #ffffff;
+    }
+    main {
+      display: grid;
+      grid-template-columns: minmax(420px, 1.1fr) minmax(320px, 0.9fr);
+      gap: 24px;
+      width: min(1120px, calc(100vw - 32px));
+      margin: 24px auto;
+      align-items: start;
+    }
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 14px;
+    }
+    h1 { margin: 0; font-size: 24px; line-height: 1.25; }
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    button, select {
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+    button:hover, select:hover {
+      border-color: var(--active);
+      color: var(--active);
+    }
+    .speed-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    input[type="range"] { width: 220px; }
+    .stage, .side {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+    .stage { padding: 18px; }
+    svg {
+      display: block;
+      width: 100%;
+      aspect-ratio: 720 / 380;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+    .arrow {
+      stroke: #94a3b8;
+      stroke-width: 3;
+      stroke-linecap: round;
+      fill: none;
+    }
+    .arrow.cut {
+      stroke: var(--delete);
+      stroke-width: 5;
+      stroke-dasharray: 8 7;
+      opacity: 0.45;
+    }
+    .arrow.keep {
+      stroke: var(--keep);
+      stroke-width: 5;
+    }
+    .cell rect {
+      fill: #ffffff;
+      stroke: #94a3b8;
+      stroke-width: 3;
+      rx: 8;
+    }
+    .cell text {
+      font-size: 24px;
+      font-weight: 700;
+      fill: var(--ink);
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+    .cell.focus rect {
+      fill: #dbeafe;
+      stroke: var(--active);
+      stroke-width: 5;
+    }
+    .cell.target rect {
+      fill: #fee2e2;
+      stroke: var(--delete);
+      stroke-width: 5;
+    }
+    .cell.detached rect {
+      fill: #ffffff;
+      stroke: var(--delete);
+      stroke-width: 4;
+      stroke-dasharray: 7 6;
+      opacity: 0.6;
+    }
+    .cell.detached text {
+      fill: var(--delete);
+      opacity: 0.7;
+    }
+    .pointer {
+      font-size: 16px;
+      font-weight: 700;
+      text-anchor: middle;
+    }
+    .pointer-p { fill: var(--keep); }
+    .pointer-q { fill: var(--active); }
+    .pointer-x { fill: var(--delete); }
+    .message {
+      margin-top: 14px;
+      min-height: 108px;
+      padding: 14px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+    .label { margin: 0 0 8px; font-size: 18px; font-weight: 700; }
+    .note { margin: 0; color: var(--muted); line-height: 1.65; }
+    .vars {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .var {
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 14px;
+    }
+    .var strong { display: inline-block; min-width: 2em; }
+    .side { padding: 16px; }
+    pre {
+      margin: 0;
+      overflow-x: auto;
+      font-size: 14px;
+      line-height: 1.6;
+      counter-reset: line;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+    .line {
+      display: block;
+      min-height: 22px;
+      padding: 0 8px;
+      border-left: 3px solid transparent;
+      white-space: pre;
+    }
+    .line::before {
+      counter-increment: line;
+      content: counter(line);
+      display: inline-block;
+      width: 2ch;
+      margin-right: 16px;
+      color: #94a3b8;
+      text-align: right;
+    }
+    .line.active {
+      background: var(--code);
+      border-left-color: var(--active);
+    }
+    @media (max-width: 820px) {
+      main { grid-template-columns: 1fr; }
+      header { align-items: flex-start; flex-direction: column; }
+      .controls { justify-content: flex-start; }
+      .vars { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>ch02-list-delete</h1>
+      <div class="controls" aria-label="再生コントロール">
+        <button id="play" type="button">再生</button>
+        <button id="restart" type="button">最初へ</button>
+        <label class="speed-label">速度
+          <select id="speed" aria-label="再生速度">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1.0x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2.0x</option>
+          </select>
+        </label>
+        <input id="seek" type="range" min="0" max="7600" value="0" step="20" aria-label="再生位置">
+      </div>
+    </header>
+
+    <section class="stage">
+      <svg id="list" viewBox="0 0 720 380" role="img" aria-label="線形リスト削除のアニメーション"></svg>
+      <div class="message">
+        <p id="label" class="label"></p>
+        <p id="note" class="note"></p>
+        <div class="vars" aria-label="変数の状態">
+          <div class="var"><strong>p</strong> = <span id="varP"></span></div>
+          <div class="var"><strong>q</strong> = <span id="varQ"></span></div>
+          <div class="var"><strong>x</strong> = <span id="varX"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <pre><code id="code"></code></pre>
+    </aside>
+  </main>
+
+  <script id="framescript" type="application/json">
+{
+  "durationMs": 7600,
+  "layout": {
+    "cells": {
+      "c4": {"x": 140, "y": 160, "value": "4"},
+      "c9": {"x": 330, "y": 160, "value": "9"},
+      "c16": {"x": 520, "y": 160, "value": "16"},
+      "d9": {"x": 330, "y": 285, "value": "9"}
+    }
+  },
+  "code": [
+    "int list_delete(List L, int head, int x) {",
+    "    int p = L.prev[x];",
+    "    int q = L.next[x];",
+    "",
+    "    if (p != NIL) {",
+    "        L.next[p] = q;",
+    "    } else {",
+    "        head = q;",
+    "    }",
+    "",
+    "    if (q != NIL) {",
+    "        L.prev[q] = p;",
+    "    }",
+    "    return head;",
+    "}"
+  ],
+  "frames": [
+    {
+      "at": 0,
+      "state": "before",
+      "p": "c4",
+      "q": "c16",
+      "x": "c9",
+      "codeLines": [0, 1, 2],
+      "label": "p = L.prev[x], q = L.next[x]",
+      "note": "削除対象 x は値 9 のセルである. まず x の前後にいる p と q を読む."
+    },
+    {
+      "at": 1800,
+      "state": "cut-next",
+      "p": "c4",
+      "q": "c16",
+      "x": "c9",
+      "codeLines": [4, 5],
+      "label": "L.next[p] = q",
+      "note": "p は NIL ではないので, p の next を q に張り替える."
+    },
+    {
+      "at": 3600,
+      "state": "cut-prev",
+      "p": "c4",
+      "q": "c16",
+      "x": "c9",
+      "codeLines": [10, 11],
+      "label": "L.prev[q] = p",
+      "note": "q から見た逆向きポインタも p へ張り替える. これで本体リストの経路から x が外れる."
+    },
+    {
+      "at": 5400,
+      "state": "after",
+      "p": "c4",
+      "q": "c16",
+      "x": "切り離し済み",
+      "codeLines": [13],
+      "label": "return head",
+      "note": "途中削除なので head は変わらない. 本体リストは 4 -> 16 になる."
+    }
+  ]
+}
+  </script>
+  <script>
+    const script = JSON.parse(document.getElementById("framescript").textContent);
+    const svg = document.getElementById("list");
+    const code = document.getElementById("code");
+    const label = document.getElementById("label");
+    const note = document.getElementById("note");
+    const varP = document.getElementById("varP");
+    const varQ = document.getElementById("varQ");
+    const varX = document.getElementById("varX");
+    const play = document.getElementById("play");
+    const restart = document.getElementById("restart");
+    const seek = document.getElementById("seek");
+    const speed = document.getElementById("speed");
+
+    const cellEls = new Map();
+    const linkEls = new Map();
+    const pointerEls = new Map();
+    let startTime = 0;
+    let elapsedBeforePlay = 0;
+    let raf = 0;
+    let playing = false;
+
+    function svgEl(name) {
+      return document.createElementNS("http://www.w3.org/2000/svg", name);
+    }
+
+    function marker(id, color) {
+      const markerEl = svgEl("marker");
+      const path = svgEl("path");
+      markerEl.setAttribute("id", id);
+      markerEl.setAttribute("viewBox", "0 0 10 10");
+      markerEl.setAttribute("refX", "9");
+      markerEl.setAttribute("refY", "5");
+      markerEl.setAttribute("markerWidth", "7");
+      markerEl.setAttribute("markerHeight", "7");
+      markerEl.setAttribute("orient", "auto-start-reverse");
+      path.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+      path.setAttribute("fill", color);
+      markerEl.append(path);
+      return markerEl;
+    }
+
+    function line(x1, y1, x2, y2, className, markerId) {
+      const el = svgEl("line");
+      el.setAttribute("x1", x1);
+      el.setAttribute("y1", y1);
+      el.setAttribute("x2", x2);
+      el.setAttribute("y2", y2);
+      el.setAttribute("class", className);
+      el.setAttribute("marker-end", `url(#${markerId})`);
+      return el;
+    }
+
+    function draw() {
+      const defs = svgEl("defs");
+      defs.append(marker("arrow", "#94a3b8"), marker("arrow-keep", "#16a34a"), marker("arrow-delete", "#dc2626"));
+      svg.append(defs);
+
+      linkEls.set("c4-c9", line(188, 160, 282, 160, "arrow", "arrow"));
+      linkEls.set("c9-c16", line(378, 160, 472, 160, "arrow", "arrow"));
+      linkEls.set("c4-c16", line(188, 160, 472, 160, "arrow keep", "arrow-keep"));
+      for (const el of linkEls.values()) {
+        svg.append(el);
+      }
+
+      for (const [id, cell] of Object.entries(script.layout.cells)) {
+        const group = svgEl("g");
+        const rect = svgEl("rect");
+        const text = svgEl("text");
+        group.setAttribute("class", "cell");
+        group.setAttribute("transform", `translate(${cell.x - 48} ${cell.y - 36})`);
+        rect.setAttribute("width", "96");
+        rect.setAttribute("height", "72");
+        text.setAttribute("x", "48");
+        text.setAttribute("y", "38");
+        text.textContent = cell.value;
+        group.append(rect, text);
+        svg.append(group);
+        cellEls.set(id, group);
+      }
+
+      [["p", "pointer-p"], ["q", "pointer-q"], ["x", "pointer-x"]].forEach(([id, cls]) => {
+        const text = svgEl("text");
+        text.setAttribute("class", `pointer ${cls}`);
+        text.textContent = id;
+        svg.append(text);
+        pointerEls.set(id, text);
+      });
+
+      const detachLineLeft = svgEl("path");
+      detachLineLeft.setAttribute("d", "M 300 245 Q 245 210 192 170");
+      detachLineLeft.setAttribute("class", "arrow cut");
+      detachLineLeft.setAttribute("marker-end", "url(#arrow-delete)");
+      svg.append(detachLineLeft);
+      linkEls.set("detach-left", detachLineLeft);
+
+      const detachLineRight = svgEl("path");
+      detachLineRight.setAttribute("d", "M 360 245 Q 430 210 488 170");
+      detachLineRight.setAttribute("class", "arrow cut");
+      detachLineRight.setAttribute("marker-end", "url(#arrow-delete)");
+      svg.append(detachLineRight);
+      linkEls.set("detach-right", detachLineRight);
+    }
+
+    function drawCode() {
+      code.innerHTML = "";
+      script.code.forEach((lineText) => {
+        const span = document.createElement("span");
+        span.className = "line";
+        span.textContent = lineText;
+        code.append(span);
+      });
+    }
+
+    function frameAt(ms) {
+      return script.frames.reduce((current, frame) => frame.at <= ms ? frame : current, script.frames[0]);
+    }
+
+    function render(ms) {
+      const frame = frameAt(ms);
+
+      linkEls.get("c4-c9").style.display = frame.state === "before" || frame.state === "cut-next" || frame.state === "cut-prev" ? "block" : "none";
+      linkEls.get("c9-c16").style.display = frame.state === "before" || frame.state === "cut-next" ? "block" : "none";
+      linkEls.get("c4-c16").style.display = frame.state === "cut-prev" || frame.state === "after" ? "block" : "none";
+      linkEls.get("detach-left").style.display = frame.state === "after" ? "block" : "none";
+      linkEls.get("detach-right").style.display = frame.state === "after" ? "block" : "none";
+
+      cellEls.get("c4").setAttribute("class", frame.state === "before" ? "cell focus" : "cell");
+      cellEls.get("c16").setAttribute("class", frame.state === "before" ? "cell focus" : "cell");
+      cellEls.get("c9").setAttribute("class", frame.state === "after" ? "cell" : "cell target");
+      cellEls.get("d9").setAttribute("class", frame.state === "after" ? "cell detached" : "cell");
+      cellEls.get("d9").style.display = frame.state === "after" ? "block" : "none";
+      cellEls.get("c9").style.display = frame.state === "after" ? "none" : "block";
+
+      pointerEls.get("p").setAttribute("x", "140");
+      pointerEls.get("p").setAttribute("y", "108");
+      pointerEls.get("q").setAttribute("x", "520");
+      pointerEls.get("q").setAttribute("y", "108");
+      pointerEls.get("x").setAttribute("x", frame.state === "after" ? "330" : "330");
+      pointerEls.get("x").setAttribute("y", frame.state === "after" ? "233" : "108");
+
+      label.textContent = frame.label;
+      note.textContent = frame.note;
+      varP.textContent = frame.p;
+      varQ.textContent = frame.q;
+      varX.textContent = frame.x;
+
+      [...code.children].forEach((line, index) => {
+        line.classList.toggle("active", frame.codeLines.includes(index));
+      });
+
+      seek.value = String(ms);
+    }
+
+    function stop() {
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+      playing = false;
+      play.textContent = "再生";
+    }
+
+    function tick(now) {
+      const rate = Number(speed.value);
+      const elapsed = Math.min((now - startTime) * rate + elapsedBeforePlay, script.durationMs);
+      render(elapsed);
+      if (elapsed >= script.durationMs) {
+        elapsedBeforePlay = script.durationMs;
+        stop();
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    }
+
+    play.addEventListener("click", () => {
+      if (playing) {
+        elapsedBeforePlay = Number(seek.value);
+        stop();
+        return;
+      }
+      playing = true;
+      play.textContent = "停止";
+      startTime = performance.now();
+      elapsedBeforePlay = Number(seek.value);
+      raf = requestAnimationFrame(tick);
+    });
+
+    restart.addEventListener("click", () => {
+      stop();
+      elapsedBeforePlay = 0;
+      render(0);
+    });
+
+    seek.addEventListener("input", (event) => {
+      const value = Number(event.target.value);
+      elapsedBeforePlay = value;
+      render(value);
+      if (playing) {
+        startTime = performance.now();
+      }
+    });
+
+    draw();
+    drawCode();
+    render(0);
+  </script>
+</body>
+</html>

@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ch02-list-freelist</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #64748b;
+      --panel: #f8fafc;
+      --line: #cbd5e1;
+      --active: #2563eb;
+      --alloc: #16a34a;
+      --free: #dc2626;
+      --code: #eef2ff;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+      color: var(--ink);
+      background: #ffffff;
+    }
+    main {
+      display: grid;
+      grid-template-columns: minmax(420px, 1.1fr) minmax(320px, 0.9fr);
+      gap: 24px;
+      width: min(1120px, calc(100vw - 32px));
+      margin: 24px auto;
+      align-items: start;
+    }
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 14px;
+    }
+    h1 { margin: 0; font-size: 24px; line-height: 1.25; }
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    button, select {
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+    button:hover, select:hover {
+      border-color: var(--active);
+      color: var(--active);
+    }
+    .speed-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    input[type="range"] { width: 220px; }
+    .stage, .side {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+    .stage { padding: 18px; }
+    svg {
+      display: block;
+      width: 100%;
+      aspect-ratio: 720 / 420;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+    .arrow {
+      stroke: #94a3b8;
+      stroke-width: 3;
+      stroke-linecap: round;
+      fill: none;
+    }
+    .arrow.alloc {
+      stroke: var(--alloc);
+      stroke-width: 5;
+    }
+    .arrow.free {
+      stroke: var(--free);
+      stroke-width: 5;
+    }
+    .cell rect {
+      fill: #ffffff;
+      stroke: #94a3b8;
+      stroke-width: 3;
+      rx: 8;
+    }
+    .cell text {
+      font-size: 24px;
+      font-weight: 700;
+      fill: var(--ink);
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+    .cell.main rect {
+      fill: #dbeafe;
+      stroke: #94a3b8;
+    }
+    .cell.free rect {
+      fill: #dcfce7;
+      stroke: #94a3b8;
+    }
+    .cell.alloc-target rect {
+      fill: #dcfce7;
+      stroke: var(--alloc);
+      stroke-width: 5;
+    }
+    .cell.free-target rect {
+      fill: #fee2e2;
+      stroke: var(--free);
+      stroke-width: 5;
+    }
+    .label-text {
+      font-size: 18px;
+      font-weight: 700;
+      fill: var(--ink);
+      text-anchor: middle;
+    }
+    .pointer {
+      font-size: 16px;
+      font-weight: 700;
+      text-anchor: middle;
+    }
+    .pointer-alloc { fill: var(--alloc); }
+    .pointer-free { fill: var(--free); }
+    .message {
+      margin-top: 14px;
+      min-height: 120px;
+      padding: 14px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+    .label { margin: 0 0 8px; font-size: 18px; font-weight: 700; }
+    .note { margin: 0; color: var(--muted); line-height: 1.65; }
+    .vars {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .var {
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .side { padding: 16px; }
+    pre {
+      margin: 0;
+      overflow-x: auto;
+      font-size: 14px;
+      line-height: 1.6;
+      counter-reset: line;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+    .line {
+      display: block;
+      min-height: 22px;
+      padding: 0 8px;
+      border-left: 3px solid transparent;
+      white-space: pre;
+    }
+    .line::before {
+      counter-increment: line;
+      content: counter(line);
+      display: inline-block;
+      width: 2ch;
+      margin-right: 16px;
+      color: #94a3b8;
+      text-align: right;
+    }
+    .line.active {
+      background: var(--code);
+      border-left-color: var(--active);
+    }
+    @media (max-width: 820px) {
+      main { grid-template-columns: 1fr; }
+      header { align-items: flex-start; flex-direction: column; }
+      .controls { justify-content: flex-start; }
+      .vars { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>ch02-list-freelist</h1>
+      <div class="controls" aria-label="再生コントロール">
+        <button id="play" type="button">再生</button>
+        <button id="restart" type="button">最初へ</button>
+        <label class="speed-label">速度
+          <select id="speed" aria-label="再生速度">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1.0x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2.0x</option>
+          </select>
+        </label>
+        <input id="seek" type="range" min="0" max="9800" value="0" step="20" aria-label="再生位置">
+      </div>
+    </header>
+
+    <section class="stage">
+      <svg id="list" viewBox="0 0 720 420" role="img" aria-label="free list の取得と返却のアニメーション"></svg>
+      <div class="message">
+        <p id="label" class="label"></p>
+        <p id="note" class="note"></p>
+        <div class="vars" aria-label="変数の状態">
+          <div class="var"><strong>freeL</strong><br><span id="varFreeL"></span></div>
+          <div class="var"><strong>x</strong><br><span id="varX"></span></div>
+          <div class="var"><strong>mode</strong><br><span id="varMode"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <pre><code id="code"></code></pre>
+    </aside>
+  </main>
+
+  <script id="framescript" type="application/json">
+{
+  "durationMs": 9800,
+  "code": [
+    "int allocate_object(List L, int *freeL) {",
+    "    int x;",
+    "    if (*freeL == NIL) {",
+    "        error(\"out of space\");",
+    "    }",
+    "    x = *freeL;",
+    "    *freeL = L.next[x];",
+    "    return x;",
+    "}",
+    "",
+    "void free_object(List L, int *freeL, int x) {",
+    "    L.next[x] = *freeL;",
+    "    *freeL = x;",
+    "}"
+  ],
+  "frames": [
+    {
+      "at": 0,
+      "mode": "allocate",
+      "phase": "start",
+      "freeL": "3",
+      "x": "未取得",
+      "codeLines": [0, 1, 2],
+      "label": "allocate_object を開始する",
+      "note": "未使用セルリストの先頭は 3 である. まず *freeL が NIL でないことを確認する."
+    },
+    {
+      "at": 1700,
+      "mode": "allocate",
+      "phase": "pick",
+      "freeL": "3",
+      "x": "3",
+      "codeLines": [5],
+      "label": "x = *freeL",
+      "note": "先頭セル 3 を取り出し, これを新たに使うセル x とする."
+    },
+    {
+      "at": 3400,
+      "mode": "allocate",
+      "phase": "advance",
+      "freeL": "1",
+      "x": "3",
+      "codeLines": [6, 7],
+      "label": "*freeL = L.next[x]",
+      "note": "freeL の先頭を次の未使用セル 1 に進める. これで 3 は free list から外れる."
+    },
+    {
+      "at": 5200,
+      "mode": "free",
+      "phase": "start",
+      "freeL": "1",
+      "x": "3",
+      "codeLines": [10, 11],
+      "label": "free_object を開始する",
+      "note": "使い終えたセル 3 を free list の先頭へ戻す準備をする."
+    },
+    {
+      "at": 7000,
+      "mode": "free",
+      "phase": "link",
+      "freeL": "1",
+      "x": "3",
+      "codeLines": [11],
+      "label": "L.next[x] = *freeL",
+      "note": "セル 3 の next を, 現在の freeL 先頭 1 へ向ける."
+    },
+    {
+      "at": 8800,
+      "mode": "free",
+      "phase": "done",
+      "freeL": "3",
+      "x": "3",
+      "codeLines": [12],
+      "label": "*freeL = x",
+      "note": "freeL を 3 に更新すると, 3 -> 1 -> 6 の順で未使用セルが並び直す."
+    }
+  ]
+}
+  </script>
+  <script>
+    const script = JSON.parse(document.getElementById("framescript").textContent);
+    const svg = document.getElementById("list");
+    const code = document.getElementById("code");
+    const label = document.getElementById("label");
+    const note = document.getElementById("note");
+    const varFreeL = document.getElementById("varFreeL");
+    const varX = document.getElementById("varX");
+    const varMode = document.getElementById("varMode");
+    const play = document.getElementById("play");
+    const restart = document.getElementById("restart");
+    const seek = document.getElementById("seek");
+    const speed = document.getElementById("speed");
+
+    const mainCells = [];
+    const freeCells = new Map();
+    const freeLinks = [];
+    let allocArrow = null;
+    let freeArrow = null;
+    let pointerX = null;
+    let startTime = 0;
+    let elapsedBeforePlay = 0;
+    let raf = 0;
+    let playing = false;
+
+    function svgEl(name) {
+      return document.createElementNS("http://www.w3.org/2000/svg", name);
+    }
+
+    function marker(id, color) {
+      const markerEl = svgEl("marker");
+      const path = svgEl("path");
+      markerEl.setAttribute("id", id);
+      markerEl.setAttribute("viewBox", "0 0 10 10");
+      markerEl.setAttribute("refX", "9");
+      markerEl.setAttribute("refY", "5");
+      markerEl.setAttribute("markerWidth", "7");
+      markerEl.setAttribute("markerHeight", "7");
+      markerEl.setAttribute("orient", "auto-start-reverse");
+      path.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+      path.setAttribute("fill", color);
+      markerEl.append(path);
+      return markerEl;
+    }
+
+    function cell(x, y, value, className) {
+      const group = svgEl("g");
+      const rect = svgEl("rect");
+      const text = svgEl("text");
+      group.setAttribute("class", `cell ${className}`);
+      group.setAttribute("transform", `translate(${x - 48} ${y - 36})`);
+      rect.setAttribute("width", "96");
+      rect.setAttribute("height", "72");
+      text.setAttribute("x", "48");
+      text.setAttribute("y", "38");
+      text.textContent = value;
+      group.append(rect, text);
+      return group;
+    }
+
+    function draw() {
+      const defs = svgEl("defs");
+      defs.append(marker("arrow", "#94a3b8"), marker("arrow-alloc", "#16a34a"), marker("arrow-free", "#dc2626"));
+      svg.append(defs);
+
+      const titleMain = svgEl("text");
+      titleMain.setAttribute("x", "280");
+      titleMain.setAttribute("y", "60");
+      titleMain.setAttribute("class", "label-text");
+      titleMain.textContent = "本体リスト";
+      svg.append(titleMain);
+
+      const titleFree = svgEl("text");
+      titleFree.setAttribute("x", "280");
+      titleFree.setAttribute("y", "230");
+      titleFree.setAttribute("class", "label-text");
+      titleFree.textContent = "未使用セルリスト freeL";
+      svg.append(titleFree);
+
+      [[120, 110, "2"], [280, 110, "5"], [440, 110, "7"]].forEach(([x, y, value]) => {
+        const group = cell(x, y, value, "main");
+        svg.append(group);
+        mainCells.push(group);
+      });
+
+      [[120, 300, "3"], [280, 300, "1"], [440, 300, "6"]].forEach(([x, y, value]) => {
+        const group = cell(x, y, value, "free");
+        svg.append(group);
+        freeCells.set(value, group);
+      });
+
+      [[168, 300, 232, 300], [328, 300, 392, 300]].forEach(([x1, y1, x2, y2]) => {
+        const line = svgEl("line");
+        line.setAttribute("x1", x1);
+        line.setAttribute("y1", y1);
+        line.setAttribute("x2", x2);
+        line.setAttribute("y2", y2);
+        line.setAttribute("class", "arrow");
+        line.setAttribute("marker-end", "url(#arrow)");
+        svg.append(line);
+        freeLinks.push(line);
+      });
+
+      const freeLArrow = svgEl("line");
+      freeLArrow.setAttribute("x1", "60");
+      freeLArrow.setAttribute("y1", "250");
+      freeLArrow.setAttribute("x2", "100");
+      freeLArrow.setAttribute("y2", "275");
+      freeLArrow.setAttribute("class", "arrow");
+      freeLArrow.setAttribute("marker-end", "url(#arrow)");
+      svg.append(freeLArrow);
+
+      const freeLLabel = svgEl("text");
+      freeLLabel.setAttribute("x", "34");
+      freeLLabel.setAttribute("y", "248");
+      freeLLabel.setAttribute("class", "label-text");
+      freeLLabel.textContent = "freeL";
+      svg.append(freeLLabel);
+
+      allocArrow = svgEl("line");
+      allocArrow.setAttribute("x1", "120");
+      allocArrow.setAttribute("y1", "240");
+      allocArrow.setAttribute("x2", "120");
+      allocArrow.setAttribute("y2", "160");
+      allocArrow.setAttribute("class", "arrow alloc");
+      allocArrow.setAttribute("marker-end", "url(#arrow-alloc)");
+      svg.append(allocArrow);
+
+      freeArrow = svgEl("line");
+      freeArrow.setAttribute("x1", "120");
+      freeArrow.setAttribute("y1", "160");
+      freeArrow.setAttribute("x2", "120");
+      freeArrow.setAttribute("y2", "240");
+      freeArrow.setAttribute("class", "arrow free");
+      freeArrow.setAttribute("marker-end", "url(#arrow-free)");
+      svg.append(freeArrow);
+
+      pointerX = svgEl("text");
+      pointerX.setAttribute("class", "pointer pointer-alloc");
+      pointerX.textContent = "x";
+      svg.append(pointerX);
+    }
+
+    function drawCode() {
+      code.innerHTML = "";
+      script.code.forEach((lineText) => {
+        const span = document.createElement("span");
+        span.className = "line";
+        span.textContent = lineText;
+        code.append(span);
+      });
+    }
+
+    function frameAt(ms) {
+      return script.frames.reduce((current, frame) => frame.at <= ms ? frame : current, script.frames[0]);
+    }
+
+    function render(ms) {
+      const frame = frameAt(ms);
+
+      freeCells.get("3").setAttribute("class", `cell ${frame.mode === "allocate" && frame.phase !== "advance" ? "alloc-target" : frame.mode === "free" ? "free-target" : "free"}`);
+      freeCells.get("1").setAttribute("class", "cell free");
+      freeCells.get("6").setAttribute("class", "cell free");
+
+      allocArrow.style.display = frame.mode === "allocate" && (frame.phase === "pick" || frame.phase === "advance") ? "block" : "none";
+      freeArrow.style.display = frame.mode === "free" && (frame.phase === "link" || frame.phase === "done") ? "block" : "none";
+
+      pointerX.style.display = frame.x === "3" ? "block" : "none";
+      if (frame.mode === "allocate") {
+        pointerX.setAttribute("class", "pointer pointer-alloc");
+        pointerX.setAttribute("x", "120");
+        pointerX.setAttribute("y", frame.phase === "advance" ? "205" : "255");
+      } else {
+        pointerX.setAttribute("class", "pointer pointer-free");
+        pointerX.setAttribute("x", "120");
+        pointerX.setAttribute("y", "205");
+      }
+
+      label.textContent = frame.label;
+      note.textContent = frame.note;
+      varFreeL.textContent = frame.freeL;
+      varX.textContent = frame.x;
+      varMode.textContent = frame.mode === "allocate" ? "allocate_object" : "free_object";
+
+      [...code.children].forEach((line, index) => {
+        line.classList.toggle("active", frame.codeLines.includes(index));
+      });
+
+      seek.value = String(ms);
+    }
+
+    function stop() {
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+      playing = false;
+      play.textContent = "再生";
+    }
+
+    function tick(now) {
+      const rate = Number(speed.value);
+      const elapsed = Math.min((now - startTime) * rate + elapsedBeforePlay, script.durationMs);
+      render(elapsed);
+      if (elapsed >= script.durationMs) {
+        elapsedBeforePlay = script.durationMs;
+        stop();
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    }
+
+    play.addEventListener("click", () => {
+      if (playing) {
+        elapsedBeforePlay = Number(seek.value);
+        stop();
+        return;
+      }
+      playing = true;
+      play.textContent = "停止";
+      startTime = performance.now();
+      elapsedBeforePlay = Number(seek.value);
+      raf = requestAnimationFrame(tick);
+    });
+
+    restart.addEventListener("click", () => {
+      stop();
+      elapsedBeforePlay = 0;
+      render(0);
+    });
+
+    seek.addEventListener("input", (event) => {
+      const value = Number(event.target.value);
+      elapsedBeforePlay = value;
+      render(value);
+      if (playing) startTime = performance.now();
+    });
+
+    draw();
+    drawCode();
+    render(0);
+  </script>
+</body>
+</html>

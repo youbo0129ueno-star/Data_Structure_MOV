@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ch02-list-minimum-maximum</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #64748b;
+      --panel: #f8fafc;
+      --line: #cbd5e1;
+      --active: #2563eb;
+      --minimum: #f97316;
+      --maximum: #7c3aed;
+      --code: #eef2ff;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+      color: var(--ink);
+      background: #ffffff;
+    }
+    main {
+      display: grid;
+      grid-template-columns: minmax(420px, 1.1fr) minmax(320px, 0.9fr);
+      gap: 24px;
+      width: min(1120px, calc(100vw - 32px));
+      margin: 24px auto;
+      align-items: start;
+    }
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 14px;
+    }
+    h1 { margin: 0; font-size: 24px; line-height: 1.25; }
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    button, select {
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+    button:hover, select:hover {
+      border-color: var(--active);
+      color: var(--active);
+    }
+    .speed-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    input[type="range"] { width: 220px; }
+    .stage, .side {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+    .stage { padding: 18px; }
+    svg {
+      display: block;
+      width: 100%;
+      aspect-ratio: 720 / 370;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+    .arrow {
+      stroke: #94a3b8;
+      stroke-width: 3;
+      stroke-linecap: round;
+      fill: none;
+    }
+    .cell rect {
+      fill: #ffffff;
+      stroke: #94a3b8;
+      stroke-width: 3;
+      rx: 8;
+    }
+    .cell text {
+      font-size: 24px;
+      font-weight: 700;
+      fill: var(--ink);
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+    .cell.visited-min rect {
+      fill: #ffedd5;
+      stroke: var(--minimum);
+    }
+    .cell.active-min rect {
+      fill: #fed7aa;
+      stroke: var(--minimum);
+      stroke-width: 5;
+    }
+    .cell.answer-min rect {
+      fill: #ffedd5;
+      stroke: var(--minimum);
+      stroke-width: 6;
+    }
+    .cell.visited-max rect {
+      fill: #ede9fe;
+      stroke: var(--maximum);
+    }
+    .cell.active-max rect {
+      fill: #ddd6fe;
+      stroke: var(--maximum);
+      stroke-width: 5;
+    }
+    .cell.answer-max rect {
+      fill: #ede9fe;
+      stroke: var(--maximum);
+      stroke-width: 6;
+    }
+    .pointer {
+      font-size: 16px;
+      font-weight: 700;
+      text-anchor: middle;
+    }
+    .pointer-min { fill: var(--minimum); }
+    .pointer-max { fill: var(--maximum); }
+    .message {
+      margin-top: 14px;
+      min-height: 128px;
+      padding: 14px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+    .label { margin: 0 0 8px; font-size: 18px; font-weight: 700; }
+    .note { margin: 0; color: var(--muted); line-height: 1.65; }
+    .vars {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .var {
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .dot {
+      width: 12px;
+      height: 12px;
+      display: inline-block;
+      border-radius: 999px;
+      margin-right: 6px;
+    }
+    .dot-min { background: var(--minimum); }
+    .dot-max { background: var(--maximum); }
+    .side { padding: 16px; }
+    pre {
+      margin: 0;
+      overflow-x: auto;
+      font-size: 14px;
+      line-height: 1.6;
+      counter-reset: line;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+    .line {
+      display: block;
+      min-height: 22px;
+      padding: 0 8px;
+      border-left: 3px solid transparent;
+      white-space: pre;
+    }
+    .line::before {
+      counter-increment: line;
+      content: counter(line);
+      display: inline-block;
+      width: 2ch;
+      margin-right: 16px;
+      color: #94a3b8;
+      text-align: right;
+    }
+    .line.active {
+      background: var(--code);
+      border-left-color: var(--active);
+    }
+    @media (max-width: 820px) {
+      main { grid-template-columns: 1fr; }
+      header { align-items: flex-start; flex-direction: column; }
+      .controls { justify-content: flex-start; }
+      .vars { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>ch02-list-minimum-maximum</h1>
+      <div class="controls" aria-label="再生コントロール">
+        <button id="play" type="button">再生</button>
+        <button id="restart" type="button">最初へ</button>
+        <label class="speed-label">速度
+          <select id="speed" aria-label="再生速度">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1.0x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2.0x</option>
+          </select>
+        </label>
+        <input id="seek" type="range" min="0" max="11200" value="0" step="20" aria-label="再生位置">
+      </div>
+    </header>
+
+    <section class="stage">
+      <svg id="list" viewBox="0 0 720 370" role="img" aria-label="線形リストの最小値・最大値探索アニメーション"></svg>
+      <div class="message">
+        <p id="label" class="label"></p>
+        <p id="note" class="note"></p>
+        <div class="vars" aria-label="変数の状態">
+          <div class="var"><strong>maximum</strong> x = <span id="varMaxX"></span><br><strong>maximum</strong> y = <span id="varMaxY"></span></div>
+          <div class="var"><strong>minimum</strong> x = <span id="varMinX"></span><br><strong>minimum</strong> y = <span id="varMinY"></span></div>
+        </div>
+        <div class="legend">
+          <span><span class="dot dot-max"></span>Maximum: 最大値候補を更新する</span>
+          <span><span class="dot dot-min"></span>Minimum: 最小値候補を更新する</span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <pre><code id="code"></code></pre>
+    </aside>
+  </main>
+
+  <script id="framescript" type="application/json">
+{
+  "durationMs": 11200,
+  "layout": {
+    "cells": [
+      {"id": "c1", "x": 120, "y": 170, "value": "4"},
+      {"id": "c2", "x": 280, "y": 170, "value": "9"},
+      {"id": "c3", "x": 440, "y": 170, "value": "6"},
+      {"id": "c4", "x": 600, "y": 170, "value": "16"}
+    ]
+  },
+  "code": [
+    "int list_maximum(List L, int head) {",
+    "    int x = head;",
+    "    int y = x;",
+    "    int max = -INF;",
+    "    while (x != NIL) {",
+    "        if (L.key[x] > max) {",
+    "            max = L.key[x];",
+    "            y = x;",
+    "        }",
+    "        x = L.next[x];",
+    "    }",
+    "    return y;",
+    "}",
+    "",
+    "int list_minimum(List L, int head) {",
+    "    int x = head;",
+    "    int y = x;",
+    "    int min = INF;",
+    "    while (x != NIL) {",
+    "        if (L.key[x] < min) {",
+    "            min = L.key[x];",
+    "            y = x;",
+    "        }",
+    "        x = L.next[x];",
+    "    }",
+    "    return y;",
+    "}"
+  ],
+  "frames": [
+    {
+      "at": 0,
+      "mode": "max",
+      "active": "c1",
+      "visited": ["c1"],
+      "answer": null,
+      "pointer": "c1",
+      "codeLines": [0, 1, 2, 3, 4, 5, 6, 7],
+      "vars": {"maxX": "c1", "maxY": "c1", "minX": "未実行", "minY": "未実行"},
+      "label": "maximum を開始する",
+      "note": "x も y も head から始める. 最初のセル 4 は現在の最大値候補になる."
+    },
+    {
+      "at": 1700,
+      "mode": "max",
+      "active": "c2",
+      "visited": ["c1", "c2"],
+      "answer": "c2",
+      "pointer": "c2",
+      "codeLines": [4, 5, 6, 7, 9],
+      "vars": {"maxX": "c2", "maxY": "c2", "minX": "未実行", "minY": "未実行"},
+      "label": "9 > 4 なので最大値候補を更新する",
+      "note": "新しい値 9 が現在の max を上回るので, max と y を c2 に更新する."
+    },
+    {
+      "at": 3400,
+      "mode": "max",
+      "active": "c3",
+      "visited": ["c1", "c2", "c3"],
+      "answer": "c2",
+      "pointer": "c3",
+      "codeLines": [4, 5, 9],
+      "vars": {"maxX": "c3", "maxY": "c2", "minX": "未実行", "minY": "未実行"},
+      "label": "6 は最大値候補を更新しない",
+      "note": "6 は現在の最大値 9 より小さいので, y はそのまま c2 に残る."
+    },
+    {
+      "at": 5000,
+      "mode": "max",
+      "active": "c4",
+      "visited": ["c1", "c2", "c3", "c4"],
+      "answer": "c4",
+      "pointer": "c4",
+      "codeLines": [4, 5, 6, 7, 9, 11],
+      "vars": {"maxX": "c4", "maxY": "c4", "minX": "未実行", "minY": "未実行"},
+      "label": "16 が最終的な最大値になる",
+      "note": "最後のセル 16 で最大値候補が更新される. 走査が終われば y = c4 を返す."
+    },
+    {
+      "at": 6200,
+      "mode": "min",
+      "active": "c1",
+      "visited": ["c1"],
+      "answer": "c1",
+      "pointer": "c1",
+      "codeLines": [14, 15, 16, 17, 18, 19, 20, 21],
+      "vars": {"maxX": "完了", "maxY": "c4", "minX": "c1", "minY": "c1"},
+      "label": "minimum を開始する",
+      "note": "minimum でも同じく先頭から走査する. 最初のセル 4 が最小値候補になる."
+    },
+    {
+      "at": 7900,
+      "mode": "min",
+      "active": "c2",
+      "visited": ["c1", "c2"],
+      "answer": "c1",
+      "pointer": "c2",
+      "codeLines": [18, 19, 22],
+      "vars": {"maxX": "完了", "maxY": "c4", "minX": "c2", "minY": "c1"},
+      "label": "9 は最小値候補を更新しない",
+      "note": "9 は現在の最小値 4 より大きいので, y は c1 のままである."
+    },
+    {
+      "at": 9500,
+      "mode": "min",
+      "active": "c3",
+      "visited": ["c1", "c2", "c3"],
+      "answer": "c1",
+      "pointer": "c3",
+      "codeLines": [18, 19, 22],
+      "vars": {"maxX": "完了", "maxY": "c4", "minX": "c3", "minY": "c1"},
+      "label": "6 でも最小値候補は変わらない",
+      "note": "6 も 4 より大きいので, 最小値候補は先頭セル c1 に残る."
+    },
+    {
+      "at": 10800,
+      "mode": "min",
+      "active": "c4",
+      "visited": ["c1", "c2", "c3", "c4"],
+      "answer": "c1",
+      "pointer": "c4",
+      "codeLines": [18, 19, 22, 24],
+      "vars": {"maxX": "完了", "maxY": "c4", "minX": "c4", "minY": "c1"},
+      "label": "minimum は c1 を返す",
+      "note": "最後まで走査しても 4 より小さい値は現れない. したがって最小値は c1 である."
+    }
+  ]
+}
+  </script>
+  <script>
+    const script = JSON.parse(document.getElementById("framescript").textContent);
+    const svg = document.getElementById("list");
+    const code = document.getElementById("code");
+    const label = document.getElementById("label");
+    const note = document.getElementById("note");
+    const varMaxX = document.getElementById("varMaxX");
+    const varMaxY = document.getElementById("varMaxY");
+    const varMinX = document.getElementById("varMinX");
+    const varMinY = document.getElementById("varMinY");
+    const play = document.getElementById("play");
+    const restart = document.getElementById("restart");
+    const seek = document.getElementById("seek");
+    const speed = document.getElementById("speed");
+
+    const cellEls = new Map();
+    let pointerMin = null;
+    let pointerMax = null;
+    let startTime = 0;
+    let elapsedBeforePlay = 0;
+    let raf = 0;
+    let playing = false;
+
+    function svgEl(name) {
+      return document.createElementNS("http://www.w3.org/2000/svg", name);
+    }
+
+    function draw() {
+      const defs = svgEl("defs");
+      const marker = svgEl("marker");
+      const path = svgEl("path");
+      marker.setAttribute("id", "arrow");
+      marker.setAttribute("viewBox", "0 0 10 10");
+      marker.setAttribute("refX", "9");
+      marker.setAttribute("refY", "5");
+      marker.setAttribute("markerWidth", "7");
+      marker.setAttribute("markerHeight", "7");
+      marker.setAttribute("orient", "auto-start-reverse");
+      path.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+      path.setAttribute("fill", "#94a3b8");
+      marker.append(path);
+      defs.append(marker);
+      svg.append(defs);
+
+      const cells = script.layout.cells;
+      for (let i = 0; i < cells.length - 1; i += 1) {
+        const line = svgEl("line");
+        line.setAttribute("class", "arrow");
+        line.setAttribute("x1", cells[i].x + 48);
+        line.setAttribute("y1", cells[i].y);
+        line.setAttribute("x2", cells[i + 1].x - 48);
+        line.setAttribute("y2", cells[i + 1].y);
+        line.setAttribute("marker-end", "url(#arrow)");
+        svg.append(line);
+      }
+
+      for (const cell of cells) {
+        const group = svgEl("g");
+        const rect = svgEl("rect");
+        const text = svgEl("text");
+        group.setAttribute("class", "cell");
+        group.setAttribute("transform", `translate(${cell.x - 48} ${cell.y - 36})`);
+        rect.setAttribute("width", "96");
+        rect.setAttribute("height", "72");
+        text.setAttribute("x", "48");
+        text.setAttribute("y", "38");
+        text.textContent = cell.value;
+        group.append(rect, text);
+        svg.append(group);
+        cellEls.set(cell.id, group);
+      }
+
+      pointerMax = svgEl("text");
+      pointerMax.setAttribute("class", "pointer pointer-max");
+      pointerMax.textContent = "x";
+      svg.append(pointerMax);
+
+      pointerMin = svgEl("text");
+      pointerMin.setAttribute("class", "pointer pointer-min");
+      pointerMin.textContent = "x";
+      svg.append(pointerMin);
+    }
+
+    function drawCode() {
+      code.innerHTML = "";
+      script.code.forEach((lineText) => {
+        const span = document.createElement("span");
+        span.className = "line";
+        span.textContent = lineText;
+        code.append(span);
+      });
+    }
+
+    function frameAt(ms) {
+      return script.frames.reduce((current, frame) => frame.at <= ms ? frame : current, script.frames[0]);
+    }
+
+    function render(ms) {
+      const frame = frameAt(ms);
+
+      for (const [id, group] of cellEls.entries()) {
+        const classes = ["cell"];
+        if (frame.mode === "max") {
+          if (frame.visited.includes(id)) classes.push("visited-max");
+          if (frame.active === id) classes.push("active-max");
+          if (frame.answer === id) classes.push("answer-max");
+        } else {
+          if (frame.visited.includes(id)) classes.push("visited-min");
+          if (frame.active === id) classes.push("active-min");
+          if (frame.answer === id) classes.push("answer-min");
+        }
+        group.setAttribute("class", classes.join(" "));
+      }
+
+      const activeCell = script.layout.cells.find((cell) => cell.id === frame.pointer);
+      if (frame.mode === "max") {
+        pointerMax.style.display = "block";
+        pointerMin.style.display = "none";
+        pointerMax.setAttribute("x", activeCell.x);
+        pointerMax.setAttribute("y", "105");
+      } else {
+        pointerMax.style.display = "none";
+        pointerMin.style.display = "block";
+        pointerMin.setAttribute("x", activeCell.x);
+        pointerMin.setAttribute("y", "105");
+      }
+
+      label.textContent = frame.label;
+      note.textContent = frame.note;
+      varMaxX.textContent = frame.vars.maxX;
+      varMaxY.textContent = frame.vars.maxY;
+      varMinX.textContent = frame.vars.minX;
+      varMinY.textContent = frame.vars.minY;
+
+      [...code.children].forEach((line, index) => {
+        line.classList.toggle("active", frame.codeLines.includes(index));
+      });
+
+      seek.value = String(ms);
+    }
+
+    function stop() {
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+      playing = false;
+      play.textContent = "再生";
+    }
+
+    function tick(now) {
+      const rate = Number(speed.value);
+      const elapsed = Math.min((now - startTime) * rate + elapsedBeforePlay, script.durationMs);
+      render(elapsed);
+      if (elapsed >= script.durationMs) {
+        elapsedBeforePlay = script.durationMs;
+        stop();
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    }
+
+    play.addEventListener("click", () => {
+      if (playing) {
+        elapsedBeforePlay = Number(seek.value);
+        stop();
+        return;
+      }
+      playing = true;
+      play.textContent = "停止";
+      startTime = performance.now();
+      elapsedBeforePlay = Number(seek.value);
+      raf = requestAnimationFrame(tick);
+    });
+
+    restart.addEventListener("click", () => {
+      stop();
+      elapsedBeforePlay = 0;
+      render(0);
+    });
+
+    seek.addEventListener("input", (event) => {
+      const value = Number(event.target.value);
+      elapsedBeforePlay = value;
+      render(value);
+      if (playing) startTime = performance.now();
+    });
+
+    draw();
+    drawCode();
+    render(0);
+  </script>
+</body>
+</html>
