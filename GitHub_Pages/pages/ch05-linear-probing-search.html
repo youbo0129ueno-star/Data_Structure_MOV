@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ch05-linear-probing-search</title>
+  <style>
+    :root{color-scheme:light;--ink:#172033;--muted:#64748b;--panel:#f8fafc;--line:#cbd5e1;--active:#2563eb;--done:#16a34a;--swap:#f97316;--code:#eef2ff}*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;color:var(--ink);background:#fff}main{display:grid;grid-template-columns:minmax(420px,1.1fr) minmax(320px,.9fr);gap:24px;width:min(1120px,calc(100vw - 32px));margin:24px auto;align-items:start}header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:16px;border-bottom:1px solid var(--line);padding-bottom:14px}h1{margin:0;font-size:24px;line-height:1.25}.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}button,select{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:6px;padding:8px 12px;font:inherit;cursor:pointer}button:hover,select:hover{border-color:var(--active);color:var(--active)}.speed-label{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:14px}input[type=range]{width:220px}.stage,.side{border:1px solid var(--line);border-radius:8px;background:var(--panel)}.stage{padding:18px}svg{display:block;width:100%;aspect-ratio:720/390;background:#fff;border:1px solid #e2e8f0;border-radius:6px}.cell rect{fill:#fff;stroke:#94a3b8;stroke-width:2;rx:6}.cell text{font-size:14px;font-weight:700;text-anchor:middle}.cell.probe rect{fill:#dbeafe;stroke:var(--active);stroke-width:4}.cell.done rect{fill:#dcfce7;stroke:var(--done);stroke-width:4}.badge{font-size:14px;font-weight:700;text-anchor:middle}.badge.e{fill:#64748b}.badge.o{fill:#2563eb}.badge.d{fill:#dc2626}.marker{font-size:15px;font-weight:700;text-anchor:middle;fill:var(--active)}.formula{font-size:18px;font-weight:700;fill:var(--ink)}.message{margin-top:14px;min-height:112px;padding:14px;background:#fff;border:1px solid #e2e8f0;border-radius:6px}.label{margin:0 0 8px;font-size:18px;font-weight:700}.note{margin:0;color:var(--muted);line-height:1.65}.side{padding:16px}pre{margin:0;overflow-x:auto;font-size:14px;line-height:1.6;counter-reset:line}code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}.line{display:block;min-height:22px;padding:0 8px;border-left:3px solid transparent;white-space:pre}.line::before{counter-increment:line;content:counter(line);display:inline-block;width:2ch;margin-right:16px;color:#94a3b8;text-align:right}.line.active{background:var(--code);border-left-color:var(--active)}@media(max-width:820px){main{grid-template-columns:1fr}header{align-items:flex-start;flex-direction:column}.controls{justify-content:flex-start}}
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>ch05-linear-probing-search</h1>
+      <div class="controls" aria-label="再生コントロール">
+        <button id="play" type="button">再生</button>
+        <button id="restart" type="button">最初へ</button>
+        <label class="speed-label">速度
+          <select id="speed" aria-label="再生速度">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1.0x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2.0x</option>
+          </select>
+        </label>
+        <input id="seek" type="range" min="0" max="10800" value="0" step="20" aria-label="再生位置">
+      </div>
+    </header>
+    <section class="stage"><svg id="view" viewBox="0 0 720 390" role="img" aria-label="線形走査法の探索アニメーション"></svg><div class="message"><p id="label" class="label"></p><p id="note" class="note"></p></div></section>
+    <aside class="side"><pre><code id="code"></code></pre></aside>
+  </main>
+  <script id="framescript" type="application/json">
+{
+  "durationMs": 10800,
+  "code": ["int hash_search(Hash A, string a) {","    int base = h(a);","    for (int i = 0; i < m; i++) {","        int y = (base + i) % m;","        if (A[y].state == Empty) return NIL;","        if (A[y].state == Occupied && A[y].key == a)","            return y;","    }","    return NIL;","}"],
+  "frames": [
+    {"at":0,"probe":-1,"done":-1,"i":"","codeLines":[0,1],"label":"\"Map\" を探索する","note":"h(\"Map\") = 4 から線形走査を始める."},
+    {"at":1800,"probe":4,"done":-1,"i":"i = 0, y = 4","codeLines":[2,3,5],"label":"A[4] = \"Tree\"","note":"Occupied だが key が一致しないため次へ進む."},
+    {"at":3600,"probe":5,"done":-1,"i":"i = 1, y = 5","codeLines":[2,3,5],"label":"A[5] = \"List\"","note":"探索値ではないので次の添字を検査する."},
+    {"at":5400,"probe":6,"done":-1,"i":"i = 2, y = 6","codeLines":[2,3,5],"label":"A[6] = \"Set\"","note":"まだ key が一致しないため走査を続ける."},
+    {"at":7200,"probe":7,"done":-1,"i":"i = 3, y = 7","codeLines":[3,5],"label":"A[7] = \"Map\"","note":"Occupied かつ key が探索値と一致する."},
+    {"at":9000,"probe":-1,"done":7,"i":"return 7","codeLines":[6],"label":"探索成功: return 7","note":"probe sequence 4, 5, 6, 7 で \"Map\" を発見した."}
+  ]
+}
+  </script>
+  <script>
+    const script=JSON.parse(document.getElementById("framescript").textContent),svg=document.getElementById("view"),code=document.getElementById("code"),label=document.getElementById("label"),note=document.getElementById("note"),play=document.getElementById("play"),restart=document.getElementById("restart"),seek=document.getElementById("seek"),speed=document.getElementById("speed"),states="EEEEOOOOEEE",keys=[null,null,null,null,"Tree","List","Set","Map",null,null,null];let startTime=0,elapsedBeforePlay=0,raf=0,playing=false;function el(n){return document.createElementNS("http://www.w3.org/2000/svg",n)}function drawCode(){script.code.forEach((line)=>{const s=document.createElement("span");s.className="line";s.textContent=line;code.append(s)})}function frameIndexAt(ms){let idx=0;script.frames.forEach((f,i)=>{if(f.at<=ms)idx=i});return idx}function write(x,y,s,cls){const t=el("text");t.setAttribute("x",x);t.setAttribute("y",y);t.setAttribute("class",cls);t.textContent=s;svg.append(t)}
+    function render(ms){const f=script.frames[frameIndexAt(ms)],x0=25,y=155,w=60;svg.innerHTML="";write(36,68,'key = "Map", base = h("Map") = 4',"formula");if(f.i)write(36,104,f.i,"marker");[...states].forEach((state,i)=>{const x=x0+i*w,g=el("g"),r=el("rect"),k=el("text");g.setAttribute("class",`cell ${f.probe===i?"probe":""} ${f.done===i?"done":""}`);g.setAttribute("transform",`translate(${x} ${y})`);r.setAttribute("width",w-5);r.setAttribute("height","72");k.setAttribute("x",(w-5)/2);k.setAttribute("y","45");k.textContent=keys[i]??"-";g.append(r,k);svg.append(g);write(x+(w-5)/2,y+25,state,`badge ${state.toLowerCase()}`);write(x+(w-5)/2,y+97,String(i),"marker")});write(32,292,"E = Empty    O = Occupied    D = Deleted","formula");label.textContent=f.label;note.textContent=f.note;[...code.children].forEach((line,i)=>line.classList.toggle("active",f.codeLines.includes(i)));seek.value=ms}
+    function tick(now){const ms=Math.min((now-startTime)*Number(speed.value)+elapsedBeforePlay,script.durationMs);render(ms);if(ms>=script.durationMs){playing=false;play.textContent="再生";return}raf=requestAnimationFrame(tick)}function start(){if(playing)return;playing=true;play.textContent="一時停止";startTime=performance.now();raf=requestAnimationFrame(tick)}function pause(){playing=false;play.textContent="再生";cancelAnimationFrame(raf);elapsedBeforePlay=Number(seek.value)}play.addEventListener("click",()=>playing?pause():start());restart.addEventListener("click",()=>{pause();elapsedBeforePlay=0;render(0)});seek.addEventListener("input",()=>{elapsedBeforePlay=Number(seek.value);render(elapsedBeforePlay);if(playing)startTime=performance.now()});speed.addEventListener("change",()=>{if(playing){elapsedBeforePlay=Number(seek.value);startTime=performance.now()}});drawCode();render(0);
+  </script>
+</body>
+</html>

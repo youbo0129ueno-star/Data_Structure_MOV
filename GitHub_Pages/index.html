@@ -232,6 +232,7 @@
         <span class="pill">ch02 5本</span>
         <span class="pill">ch03 10本</span>
         <span class="pill">ch04 5本</span>
+        <span class="pill">ch05 7本</span>
       </div>
     </header>
 
@@ -397,6 +398,64 @@
           <span class="item-title">Heapsort</span>
           <p class="item-desc">根の最大値を末尾へ移し, ヒープ領域と整列済み領域を分ける.</p>
           <span class="path">pages/ch04-heapsort.html</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="chapter" aria-labelledby="ch05-title">
+      <div class="chapter-head">
+        <h2 id="ch05-title">ch05: ハッシュ法</h2>
+        <p class="chapter-note">外部ハッシュ法, 線形走査法, 削除状態, increase_key の操作を確認する.</p>
+      </div>
+
+      <div class="grid">
+        <a class="item accent-green" href="pages/ch05-chained-hash-search.html">
+          <span class="tag">Search</span>
+          <span class="item-title">Chained Hash Search</span>
+          <p class="item-desc">バケットのチェーンをたどり, 一致する key を探索する.</p>
+          <span class="path">pages/ch05-chained-hash-search.html</span>
+        </a>
+
+        <a class="item accent-orange" href="pages/ch05-chained-hash-insert.html">
+          <span class="tag">Insert</span>
+          <span class="item-title">Chained Hash Insert</span>
+          <p class="item-desc">新セルを該当バケットのチェーン先頭へ挿入する.</p>
+          <span class="path">pages/ch05-chained-hash-insert.html</span>
+        </a>
+
+        <a class="item accent-red" href="pages/ch05-chained-hash-delete.html">
+          <span class="tag">Delete</span>
+          <span class="item-title">Chained Hash Delete</span>
+          <p class="item-desc">直前セルのリンクを張り替え, 対象 key を外す.</p>
+          <span class="path">pages/ch05-chained-hash-delete.html</span>
+        </a>
+
+        <a class="item accent-orange" href="pages/ch05-linear-probing-insert.html">
+          <span class="tag">Insert</span>
+          <span class="item-title">Linear Probing Insert</span>
+          <p class="item-desc">衝突時に添字を進め, 最初の空きへ key を格納する.</p>
+          <span class="path">pages/ch05-linear-probing-insert.html</span>
+        </a>
+
+        <a class="item accent-green" href="pages/ch05-linear-probing-search.html">
+          <span class="tag">Search</span>
+          <span class="item-title">Linear Probing Search</span>
+          <p class="item-desc">線形の probe sequence で目的の key に到達する.</p>
+          <span class="path">pages/ch05-linear-probing-search.html</span>
+        </a>
+
+        <a class="item accent-red" href="pages/ch05-hash-delete-with-state.html">
+          <span class="tag">State</span>
+          <span class="item-title">Delete with State</span>
+          <p class="item-desc">Deleted 状態を残し, 後続 key の探索経路を保つ.</p>
+          <span class="path">pages/ch05-hash-delete-with-state.html</span>
+        </a>
+
+        <a class="item" href="pages/ch05-increase-key.html">
+          <span class="tag">Heap</span>
+          <span class="item-title">increase_key</span>
+          <p class="item-desc">値を増加させ, 上方交換によって最大ヒープを修復する.</p>
+          <span class="path">pages/ch05-increase-key.html</span>
         </a>
       </div>
     </section>
