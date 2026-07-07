@@ -59,18 +59,18 @@
     function render(ms){
       const f=script.frames[frameIndexAt(ms)],x0=18,w=84,gap=8,colw=w+gap;
       svg.innerHTML="";
-      write(20,20,"A (4進表記, p=0 処理前)","rowlabel");
+      write(20,16,"A (4進表記, p=0 処理前)","rowlabel");
+      if(f.j>=0)write(x0+f.j*colw+w/2,40,`i=${f.digit}`,"marker");
       script.input.forEach((v,idx)=>{
         const x=x0+idx*colw,g=el("g"),r=el("rect"),t=el("text");
         g.setAttribute("class",`cell ${f.j===idx?"active":""}`);
-        g.setAttribute("transform",`translate(${x} 30)`);
+        g.setAttribute("transform",`translate(${x} 48)`);
         r.setAttribute("width",w);r.setAttribute("height",34);
         t.setAttribute("x",w/2);t.setAttribute("y",22);t.textContent=v;
         g.append(r,t);svg.append(g);
-        write(x+w/2,82,String(idx),"marker");
+        write(x+w/2,100,String(idx),"marker");
       });
-      if(f.j>=0)write(x0+f.j*colw+w/2,16,`i=${f.digit}`,"marker");
-      write(20,108,"buckets[0..3] (k=4)","rowlabel");
+      write(20,126,"buckets[0..3] (k=4)","rowlabel");
       const bx0=18,bw=120,bgap=12,bcolw=bw+bgap,baseY=250;
       for(let j=0;j<4;j++){
         const x=bx0+j*bcolw,items=f.buckets[j],active=f.highlight===j;

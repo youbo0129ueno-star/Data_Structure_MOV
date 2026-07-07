@@ -66,18 +66,18 @@
     function render(ms){
       const f=script.frames[frameIndexAt(ms)],x0=18,w=56,gap=6,colw=w+gap;
       svg.innerHTML="";
-      write(20,20,"A (入力, l=0, u=25, n=10)","rowlabel");
+      write(20,16,"A (入力, l=0, u=25, n=10)","rowlabel");
+      if(f.i>=0)write(x0+f.i*colw+w/2,40,`j=${f.j}`,"marker");
       script.input.forEach((v,idx)=>{
         const x=x0+idx*colw,g=el("g"),r=el("rect"),t=el("text");
         g.setAttribute("class",`cell ${f.i===idx?"active":""}`);
-        g.setAttribute("transform",`translate(${x} 30)`);
+        g.setAttribute("transform",`translate(${x} 48)`);
         r.setAttribute("width",w);r.setAttribute("height",34);
         t.setAttribute("x",w/2);t.setAttribute("y",22);t.textContent=v;
         g.append(r,t);svg.append(g);
-        write(x+w/2,82,String(idx),"marker");
+        write(x+w/2,100,String(idx),"marker");
       });
-      if(f.i>=0)write(x0+f.i*colw+w/2,-6+16,`j=${f.j}`,"marker");
-      write(20,108,"buckets[0..9]","rowlabel");
+      write(20,126,"buckets[0..9]","rowlabel");
       const baseY=250;
       for(let j=0;j<10;j++){
         const x=x0+j*colw,items=f.buckets[j],active=f.highlight===j;
