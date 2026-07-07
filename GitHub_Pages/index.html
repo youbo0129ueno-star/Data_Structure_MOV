@@ -233,6 +233,7 @@
         <span class="pill">ch03 10本</span>
         <span class="pill">ch04 5本</span>
         <span class="pill">ch05 7本</span>
+        <span class="pill">ch06 4本</span>
       </div>
     </header>
 
@@ -456,6 +457,43 @@
           <span class="item-title">increase_key</span>
           <p class="item-desc">値を増加させ, 上方交換によって最大ヒープを修復する.</p>
           <span class="path">pages/ch05-increase-key.html</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="chapter" aria-labelledby="ch06-title">
+      <div class="chapter-head">
+        <h2 id="ch06-title">ch06: バケット法</h2>
+        <p class="chapter-note">バケットソート, 配列によるバケット実装, バケットを用いた基数ソート, 桁の計算を確認する.</p>
+      </div>
+
+      <div class="grid">
+        <a class="item accent-green" href="pages/ch06-bucket-sort.html">
+          <span class="tag">Sort</span>
+          <span class="item-title">Bucket-Sort</span>
+          <p class="item-desc">値をバケットへ振り分け, バケットごとに整列してから連結する.</p>
+          <span class="path">pages/ch06-bucket-sort.html</span>
+        </a>
+
+        <a class="item accent-orange" href="pages/ch06-bucket-insert.html">
+          <span class="tag">Insert</span>
+          <span class="item-title">bucket_insert (配列実装)</span>
+          <p class="item-desc">セル配列 L と先頭ポインタ配列 B で, バケットの先頭へ新セルを挿入する.</p>
+          <span class="path">pages/ch06-bucket-insert.html</span>
+        </a>
+
+        <a class="item accent-green" href="pages/ch06-radix-sort-buckets.html">
+          <span class="tag">Sort</span>
+          <span class="item-title">radix_sort_with_buckets</span>
+          <p class="item-desc">末尾の要素から先頭挿入することで, 各桁の安定ソートをバケットで実現する.</p>
+          <span class="path">pages/ch06-radix-sort-buckets.html</span>
+        </a>
+
+        <a class="item" href="pages/ch06-digit-compute.html">
+          <span class="tag">Digit</span>
+          <span class="item-title">compute_digits</span>
+          <p class="item-desc">商を更新しながら, k 進表現の各桁を低い位から順に求める.</p>
+          <span class="path">pages/ch06-digit-compute.html</span>
         </a>
       </div>
     </section>
