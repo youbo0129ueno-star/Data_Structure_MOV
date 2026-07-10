@@ -85,7 +85,7 @@ ch06-bucket-insert link bug and the ch06 label/marker overlap happened).
    - In the textbook repo, insert right after the matching
      `\end{lstlisting}` in `src/chapters/ch07.tex`:
      ```
-     \href{https://youbo0129ueno-star.github.io/Data_Structure_MOV/GitHub_Pages/pages/ch07-<slug>.html}
+     \href{https://yuta-u-tech.github.io/Data_Structure_MOV/GitHub_Pages/pages/ch07-<slug>.html}
      {\color{blue}ここをクリック}
      \color{black}で映像を確認できます.
      ```
