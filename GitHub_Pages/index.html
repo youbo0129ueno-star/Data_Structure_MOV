@@ -238,6 +238,7 @@
         <span class="pill">ch08 3本</span>
         <span class="pill">ch09 2本</span>
         <span class="pill">ch10 2本</span>
+        <span class="pill">ch11 2本</span>
       </div>
     </header>
 
@@ -597,6 +598,29 @@
           <span class="item-title">Dijkstra 法 (2 分ヒープ版)</span>
           <p class="item-desc">同じ例グラフで候補集合を最小ヒープとして管理し, insert・delete_min・decrease_key と adr 配列の更新 (交換時の同期) を追う.</p>
           <span class="path">pages/ch10-dijkstra-heap.html</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="chapter" aria-labelledby="ch11-title">
+      <div class="chapter-head">
+        <h2 id="ch11-title">ch11: ユニオン・ファインド森と最小木</h2>
+        <p class="chapter-note">集合の分割を管理するユニオン・ファインド森 (経路圧縮) と, 最小全域木を求める Kruskal 法を確認する.</p>
+      </div>
+
+      <div class="grid">
+        <a class="item accent-green" href="pages/ch11-find-set-path-compression.html">
+          <span class="tag">Union-Find</span>
+          <span class="item-title">find_set と経路圧縮</span>
+          <p class="item-desc">Union-by-rank の規則で作った深さ3の木 (a→b→d→h) に対し find_set(a) を呼び, 根までのパス上の頂点が根へ直接張り替えられる様子を追う.</p>
+          <span class="path">pages/ch11-find-set-path-compression.html</span>
+        </a>
+
+        <a class="item accent-orange" href="pages/ch11-kruskal.html">
+          <span class="tag">Graph</span>
+          <span class="item-title">Kruskal 法</span>
+          <p class="item-desc">本文図のグラフ (a〜f) の辺を重みの昇順に見て, ユニオン・ファインドでサイクル判定しながら最小全域木を構築する.</p>
+          <span class="path">pages/ch11-kruskal.html</span>
         </a>
       </div>
     </section>
