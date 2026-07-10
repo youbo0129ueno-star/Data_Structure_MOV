@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ch10-dijkstra-heap</title>
+  <style>
+    :root{color-scheme:light;--ink:#172033;--muted:#64748b;--panel:#f8fafc;--line:#cbd5e1;--active:#2563eb;--done:#16a34a;--swap:#f97316;--code:#eef2ff}*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;color:var(--ink);background:#fff}main{display:grid;grid-template-columns:minmax(420px,1.1fr) minmax(320px,.9fr);gap:24px;width:min(1120px,calc(100vw - 32px));margin:24px auto;align-items:start}header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:16px;border-bottom:1px solid var(--line);padding-bottom:14px}h1{margin:0;font-size:24px;line-height:1.25}.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}button,select{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:6px;padding:8px 12px;font:inherit;cursor:pointer}button:hover,select:hover{border-color:var(--active);color:var(--active)}.speed-label{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:14px}input[type=range]{width:220px}.stage,.side{border:1px solid var(--line);border-radius:8px;background:var(--panel)}.stage{padding:18px}svg{display:block;width:100%;aspect-ratio:780/460;background:#fff;border:1px solid #e2e8f0;border-radius:6px}.cell rect{fill:#fff;stroke:#94a3b8;stroke-width:2;rx:6}.cell text{font-size:14px;font-weight:700;text-anchor:middle}.cell.active rect{fill:#dbeafe;stroke:var(--active);stroke-width:4}.cell.bucketActive rect{fill:#ffedd5;stroke:var(--swap);stroke-width:4}.cell.filled rect,.cell.done rect{fill:#dcfce7;stroke:var(--done);stroke-width:3}.edge{stroke:#94a3b8;stroke-width:3;marker-end:url(#arrow)}.edge.active{stroke:var(--active);stroke-width:5;marker-end:url(#arrow-active)}.bucket rect,.node rect{fill:#fff;stroke:#94a3b8;stroke-width:2;rx:5}.bucket text,.node text{font-size:16px;font-weight:700;text-anchor:middle;dominant-baseline:central}.bucket.active rect,.node.active rect{fill:#dbeafe;stroke:var(--active);stroke-width:4}.node.done rect{fill:#dcfce7;stroke:var(--done);stroke-width:4}.marker{font-size:13px;font-weight:700;text-anchor:middle;fill:var(--active)}.formula{font-size:16px;font-weight:700;fill:var(--ink)}.calc{font-size:16px;fill:var(--ink)}.rowlabel{font-size:13px;font-weight:700;fill:var(--muted)}.nil{font-size:15px;font-weight:700;fill:var(--muted)}.message{margin-top:14px;min-height:112px;padding:14px;background:#fff;border:1px solid #e2e8f0;border-radius:6px}.label{margin:0 0 8px;font-size:18px;font-weight:700}.note{margin:0;color:var(--muted);line-height:1.65}.side{padding:16px}pre{margin:0;overflow-x:auto;font-size:14px;line-height:1.6;counter-reset:line}code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}.line{display:block;min-height:22px;padding:0 8px;border-left:3px solid transparent;white-space:pre}.line::before{counter-increment:line;content:counter(line);display:inline-block;width:2ch;margin-right:16px;color:#94a3b8;text-align:right}.line.active{background:var(--code);border-left-color:var(--active)}@media(max-width:820px){main{grid-template-columns:1fr}header{align-items:flex-start;flex-direction:column}.controls{justify-content:flex-start}}
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>ch10-dijkstra-heap</h1>
+      <div class="controls" aria-label="再生コントロール">
+        <button id="play" type="button">再生</button>
+        <button id="restart" type="button">最初へ</button>
+        <label class="speed-label">速度
+          <select id="speed" aria-label="再生速度">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1.0x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2.0x</option>
+          </select>
+        </label>
+        <input id="seek" type="range" min="0" max="11000" value="0" step="20" aria-label="再生位置">
+      </div>
+    </header>
+    <section class="stage"><svg id="view" viewBox="0 0 780 460" role="img" aria-label="2分ヒープで候補集合を管理するダイクストラ法. insert, delete_min, decrease_keyとadr配列の更新を可視化する"></svg><div class="message"><p id="label" class="label"></p><p id="note" class="note"></p></div></section>
+    <aside class="side"><pre><code id="code"></code></pre></aside>
+  </main>
+  <script id="framescript" type="application/json">
+{
+  "durationMs": 11000,
+  "code": [
+    "void dijkstra_with_heap(Graph G, Vertex s, Vertex t) {",
+    "    for each v in V - {s} {",
+    "        d[v] = INF;",
+    "        pi[v] = NIL;",
+    "        adr[v] = NIL;",
+    "    }",
+    "    d[s] = 0;",
+    "    pi[s] = NIL;",
+    "    make heap H empty;",
+    "    insert(H, d[s], s);",
+    "",
+    "    while (H is not empty) {",
+    "        v = delete_min(H);",
+    "        if (v == t) {",
+    "            output d[t];",
+    "            return;",
+    "        }",
+    "        for each w adjacent to v {",
+    "            if (d[w] == INF) {",
+    "                d[w] = d[v] + l(v, w);",
+    "                pi[w] = v;",
+    "                insert(H, d[w], w);",
+    "            } else if (d[w] > d[v] + l(v, w)) {",
+    "                d[w] = d[v] + l(v, w);",
+    "                pi[w] = v;",
+    "                decrease_key(H, adr[w], d[w]);",
+    "            }",
+    "        }",
+    "    }",
+    "}"
+  ],
+  "frames": [
+    {
+      "at": 0,
+      "codeLines": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "heap": [
+        {
+          "key": 0,
+          "v": "a"
+        }
+      ],
+      "adr": {
+        "a": 0,
+        "b": null,
+        "c": null,
+        "e": null,
+        "f": null,
+        "h": null
+      },
+      "d": {
+        "a": 0,
+        "b": null,
+        "c": null,
+        "e": null,
+        "f": null,
+        "h": null
+      },
+      "pi": {
+        "a": null,
+        "b": null,
+        "c": null,
+        "e": null,
+        "f": null,
+        "h": null
+      },
+      "status": {
+        "a": "candidate",
+        "b": "unvisited",
+        "c": "unvisited",
+        "e": "unvisited",
+        "f": "unvisited",
+        "h": "unvisited"
+      },
+      "activeVertex": null,
+      "activeEdges": [],
+      "swapped": [],
+      "aOp": "",
+      "label": "初期化: insert(H, 0, a)",
+      "note": "d[a]=0, pi[a]=NIL. 空のヒープ H に insert(H,0,a). ヒープの根に a が入り, adr[a]=0 になる."
+    },
+    {
+      "at": 1000,
+      "codeLines": [
+        11,
+        12,
+        13
+      ],
+      "heap": [],
+      "adr": {
+        "a": null,
+        "b": null,
+        "c": null,
+        "e": null,
+        "f": null,
+        "h": null
+      },
+      "d": {
+        "a": 0,
+        "b": null,
+        "c": null,
+        "e": null,
+        "f": null,
+        "h": null
+      },
+      "pi": {
+        "a": null,
+        "b": null,
+        "c": null,
+        "e": null,
+        "f": null,
+        "h": null
+      },
+      "status": {
+        "a": "settled",
+        "b": "unvisited",
+        "c": "unvisited",
+        "e": "unvisited",
+        "f": "unvisited",
+        "h": "unvisited"
+      },
+      "activeVertex": "a",
+      "activeEdges": [],
+      "swapped": [],
+      "aOp": "",
+      "label": "delete_min(H) → a",
+      "note": "根の a を取り出す. ヒープは空になる. a ≠ t なので隣接頂点の処理に進む."
+    },
+    {
+      "at": 2000,
+      "codeLines": [
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "heap": [
+        {
+          "key": 1,
+          "v": "b"
+        },
+        {
+          "key": 7,
+          "v": "c"
+        }
+      ],
+      "adr": {
+        "a": null,
+        "b": 0,
+        "c": 1,
+        "e": null,
+        "f": null,
+        "h": null
+      },
+      "d": {
+        "a": 0,
+        "b": 1,
+        "c": 7,
+        "e": null,
+        "f": null,
+        "h": null
+      },
+      "pi": {
+        "a": null,
+        "b": "a",
+        "c": "a",
+        "e": null,
+        "f": null,
+        "h": null
+      },
+      "status": {
+        "a": "settled",
+        "b": "candidate",
+        "c": "candidate",
+        "e": "unvisited",
+        "f": "unvisited",
+        "h": "unvisited"
+      },
+      "activeVertex": "a",
+      "activeEdges": [
+        [
+          "a",
+          "b"
+        ],
+        [
+          "a",
+          "c"
+        ]
+      ],
+      "swapped": [],
+      "aOp": "",
+      "label": "insert(H,1,b), insert(H,7,c)",
+      "note": "insert(H,1,b): 根に b (adr[b]=0). insert(H,7,c): 末尾に c を置き親 b(key1) と比較. 7>1 なので交換なし. adr[c]=1."
+    },
+    {
+      "at": 3000,
+      "codeLines": [
+        11,
+        12,
+        13
+      ],
+      "heap": [
+        {
+          "key": 7,
+          "v": "c"
+        }
+      ],
+      "adr": {
+        "a": null,
+        "b": null,
+        "c": 0,
+        "e": null,
+        "f": null,
+        "h": null
+      },
+      "d": {
+        "a": 0,
+        "b": 1,
+        "c": 7,
+        "e": null,
+        "f": null,
+        "h": null
+      },
+      "pi": {
+        "a": null,
+        "b": "a",
+        "c": "a",
+        "e": null,
+        "f": null,
+        "h": null
+      },
+      "status": {
+        "a": "settled",
+        "b": "settled",
+        "c": "candidate",
+        "e": "unvisited",
+        "f": "unvisited",
+        "h": "unvisited"
+      },
+      "activeVertex": "b",
+      "activeEdges": [],
+      "swapped": [],
+      "aOp": "",
+      "label": "delete_min(H) → b",
+      "note": "根 b を取り出す. 末尾の c をヒープの根に移してから根を1つ減らす (downheap は不要, ノードが1個のため). adr[c]=0 に更新."
+    },
+    {
+      "at": 4000,
+      "codeLines": [
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "heap": [
+        {
+          "key": 3,
+          "v": "e"
+        },
+        {
+          "key": 7,
+          "v": "c"
+        }
+      ],
+      "adr": {
+        "a": null,
+        "b": null,
+        "c": 1,
+        "e": 0,
+        "f": null,
+        "h": null
+      },
+      "d": {
+        "a": 0,
+        "b": 1,
+        "c": 7,
+        "e": 3,
+        "f": null,
+        "h": null
+      },
+      "pi": {
+        "a": null,
+        "b": "a",
+        "c": "a",
+        "e": "b",
+        "f": null,
+        "h": null
+      },
+      "status": {
+        "a": "settled",
+        "b": "settled",
+        "c": "candidate",
+        "e": "candidate",
+        "f": "unvisited",
+        "h": "unvisited"
+      },
+      "activeVertex": "b",
+      "activeEdges": [
+        [
+          "b",
+          "e"
+        ]
+      ],
+      "swapped": [
+        "e",
+        "c"
+      ],
+      "aOp": "",
+      "label": "insert(H,3,e): upheap で交換発生",
+      "note": "d[e]=INF なので insert(H,3,e). 末尾に置いた e(key3) と親 c(key7) を比較: 3<7 なので交換する. このとき key・vertex だけでなく adr[e]=0, adr[c]=1 も必ず更新する (更新を忘れると decrease_key が誤ったセルを操作する)."
+    },
+    {
+      "at": 5000,
+      "codeLines": [
+        22,
+        23,
+        24,
+        25
+      ],
+      "heap": [
+        {
+          "key": 3,
+          "v": "e"
+        },
+        {
+          "key": 6,
+          "v": "c"
+        }
+      ],
+      "adr": {
+        "a": null,
+        "b": null,
+        "c": 1,
+        "e": 0,
+        "f": null,
+        "h": null
+      },
+      "d": {
+        "a": 0,
+        "b": 1,
+        "c": 6,
+        "e": 3,
+        "f": null,
+        "h": null
+      },
+      "pi": {
+        "a": null,
+        "b": "a",
+        "c": "b",
+        "e": "b",
+        "f": null,
+        "h": null
+      },
+      "status": {
+        "a": "settled",
+        "b": "settled",
+        "c": "candidate",
+        "e": "candidate",
+        "f": "unvisited",
+        "h": "unvisited"
+      },
+      "activeVertex": "b",
+      "activeEdges": [
+        [
+          "b",
+          "c"
+        ]
+      ],
+      "swapped": [],
+      "aOp": "",
+      "label": "decrease_key(H, adr[c]=1, 6)",
+      "note": "d[c]=7 > 1+5=6 なので d[c]=6, pi[c]=b に更新し, decrease_key(H, adr[c], 6) を呼ぶ. adr[c]=1 の key を 6 にしたあと親 e(key3) と比較: 6>3 なので交換不要."
+    },
+    {
+      "at": 6000,
+      "codeLines": [
+        11,
+        12,
+        13
+      ],
+      "heap": [
+        {
+          "key": 6,
+          "v": "c"
+        }
+      ],
+      "adr": {
+        "a": null,
+        "b": null,
+        "c": 0,
+        "e": null,
+        "f": null,
+        "h": null
+      },
+      "d": {
+        "a": 0,
+        "b": 1,
+        "c": 6,
+        "e": 3,
+        "f": null,
+        "h": null
+      },
+      "pi": {
+        "a": null,
+        "b": "a",
+        "c": "b",
+        "e": "b",
+        "f": null,
+        "h": null
+      },
+      "status": {
+        "a": "settled",
+        "b": "settled",
+        "c": "candidate",
+        "e": "settled",
+        "f": "unvisited",
+        "h": "unvisited"
+      },
+      "activeVertex": "e",
+      "activeEdges": [],
+      "swapped": [],
+      "aOp": "",
+      "label": "delete_min(H) → e",
+      "note": "根 e を取り出す. 末尾の c を根に移す. adr[c]=0 に更新. e ≠ t なので続行する."
+    },
+    {
+      "at": 7000,
+      "codeLines": [
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "heap": [
+        {
+          "key": 6,
+          "v": "c"
+        },
+        {
+          "key": 8,
+          "v": "f"
+        }
+      ],
+      "adr": {
+        "a": null,
+        "b": null,
+        "c": 0,
+        "e": null,
+        "f": 1,
+        "h": null
+      },
+      "d": {
+        "a": 0,
+        "b": 1,
+        "c": 6,
+        "e": 3,
+        "f": 8,
+        "h": null
+      },
+      "pi": {
+        "a": null,
+        "b": "a",
+        "c": "b",
+        "e": "b",
+        "f": "e",
+        "h": null
+      },
+      "status": {
+        "a": "settled",
+        "b": "settled",
+        "c": "candidate",
+        "e": "settled",
+        "f": "candidate",
+        "h": "unvisited"
+      },
+      "activeVertex": "e",
+      "activeEdges": [
+        [
+          "e",
+          "f"
+        ]
+      ],
+      "swapped": [],
+      "aOp": "",
+      "label": "insert(H,8,f)",
+      "note": "d[f]=INF なので insert(H,8,f). 親 c(key6) と比較: 8>6 なので交換なし. adr[f]=1."
+    },
+    {
+      "at": 8000,
+      "codeLines": [
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "heap": [
+        {
+          "key": 5,
+          "v": "h"
+        },
+        {
+          "key": 8,
+          "v": "f"
+        },
+        {
+          "key": 6,
+          "v": "c"
+        }
+      ],
+      "adr": {
+        "a": null,
+        "b": null,
+        "c": 2,
+        "e": null,
+        "f": 1,
+        "h": 0
+      },
+      "d": {
+        "a": 0,
+        "b": 1,
+        "c": 6,
+        "e": 3,
+        "f": 8,
+        "h": 5
+      },
+      "pi": {
+        "a": null,
+        "b": "a",
+        "c": "b",
+        "e": "b",
+        "f": "e",
+        "h": "e"
+      },
+      "status": {
+        "a": "settled",
+        "b": "settled",
+        "c": "candidate",
+        "e": "settled",
+        "f": "candidate",
+        "h": "candidate"
+      },
+      "activeVertex": "e",
+      "activeEdges": [
+        [
+          "e",
+          "h"
+        ]
+      ],
+      "swapped": [
+        "h",
+        "c"
+      ],
+      "aOp": "",
+      "label": "insert(H,5,h): upheap で交換発生",
+      "note": "d[h]=INF なので insert(H,5,h). 末尾に置いた h(key5) と親 c(key6) を比較: 5<6 なので交換する. adr[h]=0, adr[c]=2 に更新する. f は交換に関与しないので adr[f]=1 のまま."
+    },
+    {
+      "at": 9000,
+      "codeLines": [
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "heap": [
+        {
+          "key": 6,
+          "v": "c"
+        },
+        {
+          "key": 8,
+          "v": "f"
+        }
+      ],
+      "adr": {
+        "a": null,
+        "b": null,
+        "c": 0,
+        "e": null,
+        "f": 1,
+        "h": null
+      },
+      "d": {
+        "a": 0,
+        "b": 1,
+        "c": 6,
+        "e": 3,
+        "f": 8,
+        "h": 5
+      },
+      "pi": {
+        "a": null,
+        "b": "a",
+        "c": "b",
+        "e": "b",
+        "f": "e",
+        "h": "e"
+      },
+      "status": {
+        "a": "settled",
+        "b": "settled",
+        "c": "candidate",
+        "e": "settled",
+        "f": "candidate",
+        "h": "settled"
+      },
+      "activeVertex": "h",
+      "activeEdges": [],
+      "swapped": [],
+      "aOp": "",
+      "label": "delete_min(H) → h (v == t)",
+      "note": "根 h(key5) を取り出す. 末尾の c を根に移し, 子 f(key8) と比較して交換不要 (downheap 終了). h は終点 t と一致するので d[t]=5 を出力して return する. c, f はヒープに残ったまま探索を終える."
+    },
+    {
+      "at": 10000,
+      "codeLines": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+      ],
+      "heap": [
+        {
+          "key": 6,
+          "v": "c"
+        },
+        {
+          "key": 8,
+          "v": "f"
+        }
+      ],
+      "adr": {
+        "a": null,
+        "b": null,
+        "c": 0,
+        "e": null,
+        "f": 1,
+        "h": null
+      },
+      "d": {
+        "a": 0,
+        "b": 1,
+        "c": 6,
+        "e": 3,
+        "f": 8,
+        "h": 5
+      },
+      "pi": {
+        "a": null,
+        "b": "a",
+        "c": "b",
+        "e": "b",
+        "f": "e",
+        "h": "e"
+      },
+      "status": {
+        "a": "settled",
+        "b": "settled",
+        "c": "candidate",
+        "e": "settled",
+        "f": "candidate",
+        "h": "settled"
+      },
+      "activeVertex": null,
+      "activeEdges": [],
+      "swapped": [],
+      "aOp": "",
+      "label": "配列版との比較",
+      "note": "頂点の取り出し順 (a,b,e,h) と最短距離 d[h]=5 は 1 次元配列版 (ch10-dijkstra) と完全に一致する. 違いは候補集合からの最小値取り出しをヒープの delete_min で O(log|V|) にできる点で, 全体では隣接リスト表現と組み合わせて O(|E|log_2|V|) になる."
+    }
+  ]
+}
+  </script>
+  <script>
+    const script=JSON.parse(document.getElementById("framescript").textContent),svg=document.getElementById("view"),code=document.getElementById("code"),label=document.getElementById("label"),note=document.getElementById("note"),play=document.getElementById("play"),restart=document.getElementById("restart"),seek=document.getElementById("seek"),speed=document.getElementById("speed");
+    let startTime=0,elapsedBeforePlay=0,raf=0,playing=false;
+    function el(n){return document.createElementNS("http://www.w3.org/2000/svg",n)}
+    function write(x,y,s,cls){const t=el("text");t.setAttribute("x",x);t.setAttribute("y",y);t.setAttribute("class",cls);t.textContent=s;svg.append(t)}
+    function marker(id,color){const m=el("marker"),p=el("path");m.setAttribute("id",id);m.setAttribute("viewBox","0 0 10 10");m.setAttribute("refX","9");m.setAttribute("refY","5");m.setAttribute("markerWidth","7");m.setAttribute("markerHeight","7");m.setAttribute("orient","auto");p.setAttribute("d","M 0 0 L 10 5 L 0 10 z");p.setAttribute("fill",color);m.append(p);return m}
+    function arrowDefs(){const defs=el("defs");defs.append(marker("arrow","#94a3b8"),marker("arrow-active","#2563eb"));svg.append(defs)}
+    function drawCode(){script.code.forEach((line)=>{const s=document.createElement("span");s.className="line";s.textContent=line;code.append(s)})}
+    function frameIndexAt(ms){let idx=0;script.frames.forEach((f,i)=>{if(f.at<=ms)idx=i});return idx}
+    function highlightCode(f){[...code.children].forEach((line,i)=>line.classList.toggle("active",f.codeLines.includes(i)))}
+    // ---- BEGIN custom render (per-algorithm; must define function render(ms){...}) ----
+const GPOS = {
+  a: {x: 60, y: 190},
+  b: {x: 150, y: 110},
+  c: {x: 150, y: 270},
+  e: {x: 240, y: 110},
+  f: {x: 240, y: 270},
+  h: {x: 320, y: 190}
+};
+const GEDGES = [
+  ["a", "b", 1], ["a", "c", 7], ["b", "e", 2], ["b", "c", 5],
+  ["c", "f", 2], ["e", "f", 5], ["e", "h", 2], ["f", "h", 4]
+];
+const VERTS = ["a", "b", "c", "e", "f", "h"];
+const GR = 16;
+const TARGET = "h";
+const FILL = {unvisited: "#ffffff", candidate: "#dbeafe", settled: "#dcfce7"};
+const STROKE = {unvisited: "#94a3b8", candidate: "#2563eb", settled: "#16a34a"};
+
+function edgeKey(a, b) { return [a, b].sort().join("-"); }
+function hasEdge(list, a, b) { return (list || []).some((e) => edgeKey(e[0], e[1]) === edgeKey(a, b)); }
+
+function drawGraph(f) {
+  GEDGES.forEach(([a, b, w]) => {
+    const pa = GPOS[a], pb = GPOS[b];
+    const active = hasEdge(f.activeEdges, a, b);
+    const line = el("line");
+    line.setAttribute("x1", pa.x); line.setAttribute("y1", pa.y);
+    line.setAttribute("x2", pb.x); line.setAttribute("y2", pb.y);
+    line.setAttribute("stroke", active ? "#2563eb" : "#cbd5e1");
+    line.setAttribute("stroke-width", active ? "4" : "2");
+    svg.append(line);
+  });
+  VERTS.forEach((v) => {
+    const p = GPOS[v], st = f.status[v];
+    const c = el("circle");
+    c.setAttribute("cx", p.x); c.setAttribute("cy", p.y); c.setAttribute("r", GR);
+    c.setAttribute("fill", FILL[st]); c.setAttribute("stroke", STROKE[st]);
+    c.setAttribute("stroke-width", v === f.activeVertex ? "4" : "2");
+    svg.append(c);
+    if (v === TARGET) {
+      const ring = el("circle");
+      ring.setAttribute("cx", p.x); ring.setAttribute("cy", p.y); ring.setAttribute("r", GR + 5);
+      ring.setAttribute("fill", "none"); ring.setAttribute("stroke", "#f97316");
+      ring.setAttribute("stroke-width", "2"); ring.setAttribute("stroke-dasharray", "3 3");
+      svg.append(ring);
+    }
+    const t = el("text");
+    t.setAttribute("x", p.x); t.setAttribute("y", p.y + 4);
+    t.setAttribute("text-anchor", "middle"); t.setAttribute("font-size", "13"); t.setAttribute("font-weight", "700");
+    t.textContent = v;
+    svg.append(t);
+    write(p.x, p.y + GR + 14, "d=" + (f.d[v] === null ? "∞" : f.d[v]), "marker");
+  });
+  write(60, 40, "本文の例グラフ (再掲)", "rowlabel");
+}
+
+const SLOT = [
+  {x: 560, y: 90},
+  {x: 480, y: 170},
+  {x: 640, y: 170}
+];
+
+function drawHeap(f) {
+  write(420, 40, "ヒープ H (根 = 最小 key)", "rowlabel");
+  // edges between heap nodes (tree shape) for current size
+  const n = f.heap.length;
+  if (n >= 2) {
+    const line = el("line");
+    line.setAttribute("x1", SLOT[0].x); line.setAttribute("y1", SLOT[0].y);
+    line.setAttribute("x2", SLOT[1].x); line.setAttribute("y2", SLOT[1].y);
+    line.setAttribute("stroke", "#94a3b8"); line.setAttribute("stroke-width", "2");
+    svg.append(line);
+  }
+  if (n >= 3) {
+    const line = el("line");
+    line.setAttribute("x1", SLOT[0].x); line.setAttribute("y1", SLOT[0].y);
+    line.setAttribute("x2", SLOT[2].x); line.setAttribute("y2", SLOT[2].y);
+    line.setAttribute("stroke", "#94a3b8"); line.setAttribute("stroke-width", "2");
+    svg.append(line);
+  }
+  f.heap.forEach((cell, i) => {
+    const p = SLOT[i];
+    const isSwapped = f.swapped.includes(cell.v);
+    const circle = el("circle");
+    circle.setAttribute("cx", p.x); circle.setAttribute("cy", p.y); circle.setAttribute("r", 28);
+    circle.setAttribute("fill", isSwapped ? "#ffedd5" : "#dbeafe");
+    circle.setAttribute("stroke", isSwapped ? "#f97316" : "#2563eb");
+    circle.setAttribute("stroke-width", isSwapped ? "5" : "3");
+    svg.append(circle);
+    const t1 = el("text");
+    t1.setAttribute("x", p.x); t1.setAttribute("y", p.y - 2);
+    t1.setAttribute("text-anchor", "middle"); t1.setAttribute("font-size", "15"); t1.setAttribute("font-weight", "700");
+    t1.textContent = cell.v;
+    svg.append(t1);
+    const t2 = el("text");
+    t2.setAttribute("x", p.x); t2.setAttribute("y", p.y + 15);
+    t2.setAttribute("text-anchor", "middle"); t2.setAttribute("font-size", "12"); t2.setAttribute("fill", "#475569");
+    t2.textContent = "key=" + cell.key;
+    svg.append(t2);
+    write(p.x, p.y - 38, "H[" + i + "]", "rowlabel");
+  });
+  if (n === 0) {
+    write(560, 130, "(空)", "nil");
+  }
+}
+
+function drawTable(f) {
+  const x0 = 420, y0 = 230, rowH = 24;
+  write(x0, y0, "頂点", "rowlabel");
+  write(x0 + 50, y0, "d", "rowlabel");
+  write(x0 + 90, y0, "pi", "rowlabel");
+  write(x0 + 140, y0, "adr", "rowlabel");
+  write(x0 + 190, y0, "状態", "rowlabel");
+  VERTS.forEach((v, i) => {
+    const y = y0 + 22 + i * rowH;
+    write(x0, y, v, "calc");
+    write(x0 + 50, y, f.d[v] === null ? "∞" : String(f.d[v]), "calc");
+    write(x0 + 90, y, f.pi[v] === null ? "NIL" : f.pi[v], "calc");
+    write(x0 + 140, y, f.adr[v] === null ? "NIL" : String(f.adr[v]), "calc");
+    const stJa = {unvisited: "未到達", candidate: "候補(H内)", settled: "確定"}[f.status[v]];
+    const t = el("text");
+    t.setAttribute("x", x0 + 190); t.setAttribute("y", y);
+    t.setAttribute("font-size", "13"); t.setAttribute("fill", STROKE[f.status[v]]); t.setAttribute("font-weight", "700");
+    t.textContent = stJa;
+    svg.append(t);
+  });
+}
+
+function render(ms) {
+  const idx = frameIndexAt(ms), f = script.frames[idx];
+  svg.innerHTML = "";
+  drawGraph(f);
+  drawHeap(f);
+  drawTable(f);
+  label.textContent = f.label;
+  note.textContent = f.note;
+  highlightCode(f);
+  seek.value = ms;
+}
+    // ---- END custom render ----
+    function tick(now){const ms=Math.min((now-startTime)*Number(speed.value)+elapsedBeforePlay,script.durationMs);render(ms);if(ms>=script.durationMs){playing=false;play.textContent="再生";return}raf=requestAnimationFrame(tick)}
+    function start(){if(playing)return;playing=true;play.textContent="一時停止";startTime=performance.now();raf=requestAnimationFrame(tick)}
+    function pause(){playing=false;play.textContent="再生";cancelAnimationFrame(raf);elapsedBeforePlay=Number(seek.value)}
+    play.addEventListener("click",()=>playing?pause():start());
+    restart.addEventListener("click",()=>{pause();elapsedBeforePlay=0;render(0)});
+    seek.addEventListener("input",()=>{elapsedBeforePlay=Number(seek.value);render(elapsedBeforePlay);if(playing)startTime=performance.now()});
+    speed.addEventListener("change",()=>{if(playing){elapsedBeforePlay=Number(seek.value);startTime=performance.now()}});
+    drawCode();render(0);
+  </script>
+</body>
+</html>

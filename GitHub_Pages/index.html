@@ -237,6 +237,7 @@
         <span class="pill">ch07 2本</span>
         <span class="pill">ch08 3本</span>
         <span class="pill">ch09 2本</span>
+        <span class="pill">ch10 2本</span>
       </div>
     </header>
 
@@ -573,6 +574,29 @@
           <span class="item-title">DFS (深さ優先探索)</span>
           <p class="item-desc">本文図の有向木 (s, r, w, v, t, u, y, x) を再帰呼び出しスタックで探索し, 発見時刻 d と終了時刻 f を追う.</p>
           <span class="path">pages/ch09-dfs.html</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="chapter" aria-labelledby="ch10-title">
+      <div class="chapter-head">
+        <h2 id="ch10-title">ch10: 最短路問題</h2>
+        <p class="chapter-note">Dijkstra 法で始点 a から終点 h への最短距離を確定し, 経路を復元する. 候補集合を 1 次元配列で持つ版と 2 分ヒープで持つ版を比較する.</p>
+      </div>
+
+      <div class="grid">
+        <a class="item accent-green" href="pages/ch10-dijkstra.html">
+          <span class="tag">Graph</span>
+          <span class="item-title">Dijkstra 法 (1 次元配列版) と経路復元</span>
+          <p class="item-desc">本文図のグラフ (a,b,c,e,f,h) を s=a, t=h で探索し, 候補集合 A と d, pi の更新, および output_path による経路復元までを追う.</p>
+          <span class="path">pages/ch10-dijkstra.html</span>
+        </a>
+
+        <a class="item accent-orange" href="pages/ch10-dijkstra-heap.html">
+          <span class="tag">Graph</span>
+          <span class="item-title">Dijkstra 法 (2 分ヒープ版)</span>
+          <p class="item-desc">同じ例グラフで候補集合を最小ヒープとして管理し, insert・delete_min・decrease_key と adr 配列の更新 (交換時の同期) を追う.</p>
+          <span class="path">pages/ch10-dijkstra-heap.html</span>
         </a>
       </div>
     </section>
