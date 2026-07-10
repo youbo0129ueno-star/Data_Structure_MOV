@@ -235,6 +235,7 @@
         <span class="pill">ch05 7本</span>
         <span class="pill">ch06 4本</span>
         <span class="pill">ch07 2本</span>
+        <span class="pill">ch08 3本</span>
       </div>
     </header>
 
@@ -518,6 +519,36 @@
           <span class="item-title">move (ハノイの塔)</span>
           <p class="item-desc">n=3 の円盤を再帰呼び出しで柱 A から柱 C へ移す.</p>
           <span class="path">pages/ch07-hanoi-move.html</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="chapter" aria-labelledby="ch08-title">
+      <div class="chapter-head">
+        <h2 id="ch08-title">ch08: 再帰呼び出しと分割統治法</h2>
+        <p class="chapter-note">クイックソートのPartition, マージソートのMerge, 分割統治法による高速乗算の3つを確認する.</p>
+      </div>
+
+      <div class="grid">
+        <a class="item accent-green" href="pages/ch08-partition.html">
+          <span class="tag">Sort</span>
+          <span class="item-title">partition</span>
+          <p class="item-desc">基準値 x=15 に対し, i, j の2ポインタで配列を左右に分ける (Lomuto型).</p>
+          <span class="path">pages/ch08-partition.html</span>
+        </a>
+
+        <a class="item accent-orange" href="pages/ch08-merge.html">
+          <span class="tag">Sort</span>
+          <span class="item-title">merge</span>
+          <p class="item-desc">整列済みの前半と後半を先頭から比較し, 補助配列 B へ統合してから A へ書き戻す.</p>
+          <span class="path">pages/ch08-merge.html</span>
+        </a>
+
+        <a class="item accent-green" href="pages/ch08-multiply.html">
+          <span class="tag">Recursion</span>
+          <span class="item-title">multiply (高速乗算)</span>
+          <p class="item-desc">x=3, y=2, n=2 の小さな独自例で, 3回の半サイズ乗算 u, v, w への分割統治を再帰木で追う.</p>
+          <span class="path">pages/ch08-multiply.html</span>
         </a>
       </div>
     </section>
