@@ -239,6 +239,7 @@
         <span class="pill">ch09 2本</span>
         <span class="pill">ch10 2本</span>
         <span class="pill">ch11 2本</span>
+        <span class="pill">ch12 3本</span>
       </div>
     </header>
 
@@ -621,6 +622,36 @@
           <span class="item-title">Kruskal 法</span>
           <p class="item-desc">本文図のグラフ (a〜f) の辺を重みの昇順に見て, ユニオン・ファインドでサイクル判定しながら最小全域木を構築する.</p>
           <span class="path">pages/ch11-kruskal.html</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="chapter" aria-labelledby="ch12-title">
+      <div class="chapter-head">
+        <h2 id="ch12-title">ch12: 動的計画法</h2>
+        <p class="chapter-note">最適性の原理と重なり合う小問題を利用する動的計画法を, 全頂点対間最短路・連鎖行列積・弾性マッチングの3つのDP表で確認する.</p>
+      </div>
+
+      <div class="grid">
+        <a class="item accent-green" href="pages/ch12-floyd-warshall.html">
+          <span class="tag">DP</span>
+          <span class="item-title">Floyd-Warshall法</span>
+          <p class="item-desc">独自に用意した4頂点の有向グラフに対し, 経由点集合を {1,...,k} に増やしながら距離行列 d^k を k を外側ループにして更新する様子を追う.</p>
+          <span class="path">pages/ch12-floyd-warshall.html</span>
+        </a>
+
+        <a class="item accent-orange" href="pages/ch12-matrix-chain-order.html">
+          <span class="tag">DP</span>
+          <span class="item-title">Matrix-Chain-Order</span>
+          <p class="item-desc">独自に用意した4個の行列 (p=(5,4,6,2,7)) に対し, コスト表 m[i,j] を対角線状 (len=2,3,4) に埋めながら分割位置 k を全探索する様子を追う.</p>
+          <span class="path">pages/ch12-matrix-chain-order.html</span>
+        </a>
+
+        <a class="item accent-red" href="pages/ch12-elastic-matching.html">
+          <span class="tag">DP</span>
+          <span class="item-title">弾性マッチング</span>
+          <p class="item-desc">独自の系列 A=(1,3,5), B=(2,3,6) とコスト c(i,j)=|A[i]-B[j]| に対し, 境界条件から始めて D[i,j]=min(D[i-1,j-1],D[i-1,j],D[i,j-1])+c(i,j) でDP表を埋める様子を追う.</p>
+          <span class="path">pages/ch12-elastic-matching.html</span>
         </a>
       </div>
     </section>

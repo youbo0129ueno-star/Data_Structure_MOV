@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ch12-floyd-warshall</title>
+  <style>
+    :root{color-scheme:light;--ink:#172033;--muted:#64748b;--panel:#f8fafc;--line:#cbd5e1;--active:#2563eb;--done:#16a34a;--swap:#f97316;--code:#eef2ff}*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;color:var(--ink);background:#fff}main{display:grid;grid-template-columns:minmax(420px,1.1fr) minmax(320px,.9fr);gap:24px;width:min(1120px,calc(100vw - 32px));margin:24px auto;align-items:start}header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:16px;border-bottom:1px solid var(--line);padding-bottom:14px}h1{margin:0;font-size:24px;line-height:1.25}.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}button,select{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:6px;padding:8px 12px;font:inherit;cursor:pointer}button:hover,select:hover{border-color:var(--active);color:var(--active)}.speed-label{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:14px}input[type=range]{width:220px}.stage,.side{border:1px solid var(--line);border-radius:8px;background:var(--panel)}.stage{padding:18px}svg{display:block;width:100%;aspect-ratio:720/440;background:#fff;border:1px solid #e2e8f0;border-radius:6px}.cell rect{fill:#fff;stroke:#94a3b8;stroke-width:2;rx:6}.cell text{font-size:14px;font-weight:700;text-anchor:middle}.cell.active rect{fill:#dbeafe;stroke:var(--active);stroke-width:4}.cell.bucketActive rect{fill:#ffedd5;stroke:var(--swap);stroke-width:4}.cell.filled rect,.cell.done rect{fill:#dcfce7;stroke:var(--done);stroke-width:3}.edge{stroke:#94a3b8;stroke-width:3;marker-end:url(#arrow)}.edge.active{stroke:var(--active);stroke-width:5;marker-end:url(#arrow-active)}.bucket rect,.node rect{fill:#fff;stroke:#94a3b8;stroke-width:2;rx:5}.bucket text,.node text{font-size:16px;font-weight:700;text-anchor:middle;dominant-baseline:central}.bucket.active rect,.node.active rect{fill:#dbeafe;stroke:var(--active);stroke-width:4}.node.done rect{fill:#dcfce7;stroke:var(--done);stroke-width:4}.marker{font-size:13px;font-weight:700;text-anchor:middle;fill:var(--active)}.formula{font-size:16px;font-weight:700;fill:var(--ink)}.calc{font-size:16px;fill:var(--ink)}.rowlabel{font-size:13px;font-weight:700;fill:var(--muted)}.nil{font-size:15px;font-weight:700;fill:var(--muted)}.message{margin-top:14px;min-height:112px;padding:14px;background:#fff;border:1px solid #e2e8f0;border-radius:6px}.label{margin:0 0 8px;font-size:18px;font-weight:700}.note{margin:0;color:var(--muted);line-height:1.65}.side{padding:16px}pre{margin:0;overflow-x:auto;font-size:14px;line-height:1.6;counter-reset:line}code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}.line{display:block;min-height:22px;padding:0 8px;border-left:3px solid transparent;white-space:pre}.line::before{counter-increment:line;content:counter(line);display:inline-block;width:2ch;margin-right:16px;color:#94a3b8;text-align:right}.line.active{background:var(--code);border-left-color:var(--active)}@media(max-width:820px){main{grid-template-columns:1fr}header{align-items:flex-start;flex-direction:column}.controls{justify-content:flex-start}}
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>ch12-floyd-warshall</h1>
+      <div class="controls" aria-label="再生コントロール">
+        <button id="play" type="button">再生</button>
+        <button id="restart" type="button">最初へ</button>
+        <label class="speed-label">速度
+          <select id="speed" aria-label="再生速度">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1.0x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2.0x</option>
+          </select>
+        </label>
+        <input id="seek" type="range" min="0" max="19000" value="0" step="20" aria-label="再生位置">
+      </div>
+    </header>
+    <section class="stage"><svg id="view" viewBox="0 0 720 440" role="img" aria-label="Floyd-Warshall法で4頂点グラフの全頂点対最短路をkを外側ループにして更新するアニメーション"></svg><div class="message"><p id="label" class="label"></p><p id="note" class="note"></p></div></section>
+    <aside class="side"><pre><code id="code"></code></pre></aside>
+  </main>
+  <script id="framescript" type="application/json">
+{
+  "durationMs": 19000,
+  "code": [
+    "void floyd_warshall(int n, real l[][]) {",
+    "    for (int i = 1; i <= n; i++) {",
+    "        for (int j = 1; j <= n; j++) {",
+    "            d[0][i][j] = l[i][j];",
+    "        }",
+    "        d[0][i][i] = 0;",
+    "    }",
+    "",
+    "    for (int k = 1; k <= n; k++) {",
+    "        for (int i = 1; i <= n; i++) {",
+    "            for (int j = 1; j <= n; j++) {",
+    "                d[k][i][j] = min(d[k-1][i][j],",
+    "                                 d[k-1][i][k] + d[k-1][k][j]);",
+    "            }",
+    "        }",
+    "    }",
+    "}"
+  ],
+  "frames": [
+    {
+      "at": 0,
+      "k": 0,
+      "matrix": [
+        [
+          0,
+          3,
+          "∞",
+          7
+        ],
+        [
+          "∞",
+          0,
+          1,
+          "∞"
+        ],
+        [
+          5,
+          "∞",
+          0,
+          2
+        ],
+        [
+          "∞",
+          4,
+          "∞",
+          0
+        ]
+      ],
+      "changed": [],
+      "codeLines": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "label": "初期化: d^0 は与えられた隣接行列そのもの",
+      "note": "本文には数値例がないため, 4頂点の独自の有向グラフを用意した (l[1,2]=3, l[1,4]=7, l[2,3]=1, l[3,1]=5, l[3,4]=2, l[4,2]=4, 他の辺は∞). d^0[i,j]=l[i,j] とし, 対角成分 d^0[i,i] は 0 にする."
+    },
+    {
+      "at": 3500,
+      "k": 1,
+      "matrix": [
+        [
+          0,
+          3,
+          "∞",
+          7
+        ],
+        [
+          "∞",
+          0,
+          1,
+          "∞"
+        ],
+        [
+          5,
+          8,
+          0,
+          2
+        ],
+        [
+          "∞",
+          4,
+          "∞",
+          0
+        ]
+      ],
+      "changed": [
+        [
+          3,
+          2
+        ]
+      ],
+      "codeLines": [
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "label": "k=1: 頂点1を経由点として許す",
+      "note": "d^1[i,j]=min(d^0[i,j], d^0[i,1]+d^0[1,j]). 更新は d^1[3,2]=min(∞, d^0[3,1]+d^0[1,2])=min(∞, 5+3)=8 の1か所だけ (水色は参照した行1・列1)."
+    },
+    {
+      "at": 7500,
+      "k": 2,
+      "matrix": [
+        [
+          0,
+          3,
+          4,
+          7
+        ],
+        [
+          "∞",
+          0,
+          1,
+          "∞"
+        ],
+        [
+          5,
+          8,
+          0,
+          2
+        ],
+        [
+          "∞",
+          4,
+          5,
+          0
+        ]
+      ],
+      "changed": [
+        [
+          1,
+          3
+        ],
+        [
+          4,
+          3
+        ]
+      ],
+      "codeLines": [
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "label": "k=2: 頂点2を経由点として許す",
+      "note": "d^2[i,j]=min(d^1[i,j], d^1[i,2]+d^1[2,j]). d[1,3]=min(∞, 3+1)=4, d[4,3]=min(∞, 4+1)=5 が更新された."
+    },
+    {
+      "at": 11500,
+      "k": 3,
+      "matrix": [
+        [
+          0,
+          3,
+          4,
+          6
+        ],
+        [
+          6,
+          0,
+          1,
+          3
+        ],
+        [
+          5,
+          8,
+          0,
+          2
+        ],
+        [
+          10,
+          4,
+          5,
+          0
+        ]
+      ],
+      "changed": [
+        [
+          1,
+          4
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          4
+        ],
+        [
+          4,
+          1
+        ]
+      ],
+      "codeLines": [
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "label": "k=3: 頂点3を経由点として許す",
+      "note": "d^3[i,j]=min(d^2[i,j], d^2[i,3]+d^2[3,j]). d[1,4]=min(7,4+2)=6, d[2,1]=min(∞,1+5)=6, d[2,4]=min(∞,1+2)=3, d[4,1]=min(∞,5+5)=10 が更新された."
+    },
+    {
+      "at": 15500,
+      "k": 4,
+      "matrix": [
+        [
+          0,
+          3,
+          4,
+          6
+        ],
+        [
+          6,
+          0,
+          1,
+          3
+        ],
+        [
+          5,
+          6,
+          0,
+          2
+        ],
+        [
+          10,
+          4,
+          5,
+          0
+        ]
+      ],
+      "changed": [
+        [
+          3,
+          2
+        ]
+      ],
+      "codeLines": [
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "label": "k=4: 頂点4を経由点として許す (完了)",
+      "note": "d^4[3,2]=min(8, d^3[3,4]+d^3[4,2])=min(8,2+4)=6 のみ更新. k=4=n まで終えたので, 全頂点対の最短距離 d^4 が確定した."
+    }
+  ]
+}
+  </script>
+  <script>
+    const script=JSON.parse(document.getElementById("framescript").textContent),svg=document.getElementById("view"),code=document.getElementById("code"),label=document.getElementById("label"),note=document.getElementById("note"),play=document.getElementById("play"),restart=document.getElementById("restart"),seek=document.getElementById("seek"),speed=document.getElementById("speed");
+    let startTime=0,elapsedBeforePlay=0,raf=0,playing=false;
+    function el(n){return document.createElementNS("http://www.w3.org/2000/svg",n)}
+    function write(x,y,s,cls){const t=el("text");t.setAttribute("x",x);t.setAttribute("y",y);t.setAttribute("class",cls);t.textContent=s;svg.append(t)}
+    function marker(id,color){const m=el("marker"),p=el("path");m.setAttribute("id",id);m.setAttribute("viewBox","0 0 10 10");m.setAttribute("refX","9");m.setAttribute("refY","5");m.setAttribute("markerWidth","7");m.setAttribute("markerHeight","7");m.setAttribute("orient","auto");p.setAttribute("d","M 0 0 L 10 5 L 0 10 z");p.setAttribute("fill",color);m.append(p);return m}
+    function arrowDefs(){const defs=el("defs");defs.append(marker("arrow","#94a3b8"),marker("arrow-active","#2563eb"));svg.append(defs)}
+    function drawCode(){script.code.forEach((line)=>{const s=document.createElement("span");s.className="line";s.textContent=line;code.append(s)})}
+    function frameIndexAt(ms){let idx=0;script.frames.forEach((f,i)=>{if(f.at<=ms)idx=i});return idx}
+    function highlightCode(f){[...code.children].forEach((line,i)=>line.classList.toggle("active",f.codeLines.includes(i)))}
+    // ---- BEGIN custom render (per-algorithm; must define function render(ms){...}) ----
+const CELL_W = 76, CELL_H = 48;
+const GRID_X0 = 210, GRID_Y0 = 96;
+function isChanged(f, i, j){
+  return f.changed.some((c) => c[0] === i && c[1] === j);
+}
+function isRef(f, i, j){
+  return f.k > 0 && (i === f.k || j === f.k);
+}
+function render(ms){
+  const idx = frameIndexAt(ms), f = script.frames[idx];
+  svg.innerHTML = "";
+  write(24, 40, "d^" + f.k + "  (経由を許す頂点: {1,...," + f.k + "})", "formula");
+  // column headers
+  for (let c = 0; c < 4; c++){
+    const x = GRID_X0 + c * CELL_W + (CELL_W - 6) / 2;
+    write(x, GRID_Y0 - 16, "j=" + (c + 1), "marker");
+  }
+  for (let r = 0; r < 4; r++){
+    const y = GRID_Y0 + r * CELL_H;
+    write(GRID_X0 - 24, y + CELL_H / 2 + 5, "i=" + (r + 1), "rowlabel");
+    for (let c = 0; c < 4; c++){
+      const x = GRID_X0 + c * CELL_W;
+      const i = r + 1, j = c + 1;
+      const g = el("g");
+      const changed = isChanged(f, i, j);
+      const ref = isRef(f, i, j);
+      g.setAttribute("class", "cell" + (changed ? " filled" : "") + (!changed && ref ? " active" : ""));
+      const rect = el("rect");
+      rect.setAttribute("x", x); rect.setAttribute("y", y);
+      rect.setAttribute("width", CELL_W - 8); rect.setAttribute("height", CELL_H - 8);
+      g.append(rect);
+      const t = el("text");
+      t.setAttribute("x", x + (CELL_W - 8) / 2);
+      t.setAttribute("y", y + (CELL_H - 8) / 2 + 5);
+      t.textContent = String(f.matrix[r][c]);
+      g.append(t);
+      svg.append(g);
+    }
+  }
+  const legendY = GRID_Y0 + 4 * CELL_H + 30;
+  write(GRID_X0, legendY, "緑 = このステップで更新されたセル", "rowlabel");
+  write(GRID_X0, legendY + 20, "水色 = 参照した行 k・列 k", "rowlabel");
+  label.textContent = f.label;
+  note.textContent = f.note;
+  highlightCode(f);
+  seek.value = ms;
+}
+    // ---- END custom render ----
+    function tick(now){const ms=Math.min((now-startTime)*Number(speed.value)+elapsedBeforePlay,script.durationMs);render(ms);if(ms>=script.durationMs){playing=false;play.textContent="再生";return}raf=requestAnimationFrame(tick)}
+    function start(){if(playing)return;playing=true;play.textContent="一時停止";startTime=performance.now();raf=requestAnimationFrame(tick)}
+    function pause(){playing=false;play.textContent="再生";cancelAnimationFrame(raf);elapsedBeforePlay=Number(seek.value)}
+    play.addEventListener("click",()=>playing?pause():start());
+    restart.addEventListener("click",()=>{pause();elapsedBeforePlay=0;render(0)});
+    seek.addEventListener("input",()=>{elapsedBeforePlay=Number(seek.value);render(elapsedBeforePlay);if(playing)startTime=performance.now()});
+    speed.addEventListener("change",()=>{if(playing){elapsedBeforePlay=Number(seek.value);startTime=performance.now()}});
+    drawCode();render(0);
+  </script>
+</body>
+</html>
