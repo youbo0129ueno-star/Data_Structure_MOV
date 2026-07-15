@@ -3,94 +3,158 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ch04-insertion-sort</title>
+  <title>挿入ソート: i, j, a を追う</title>
   <style>
-    :root{color-scheme:light;--ink:#172033;--muted:#64748b;--panel:#f8fafc;--line:#cbd5e1;--active:#2563eb;--sorted:#16a34a;--shift:#f97316;--code:#eef2ff}
-    *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;color:var(--ink);background:#fff}
-    main{display:grid;grid-template-columns:minmax(420px,1.1fr) minmax(320px,.9fr);gap:24px;width:min(1120px,calc(100vw - 32px));margin:24px auto;align-items:start}
-    header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:16px;border-bottom:1px solid var(--line);padding-bottom:14px}
-    h1{margin:0;font-size:24px;line-height:1.25;letter-spacing:0}
-    .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
-    button,select{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:6px;padding:8px 12px;font:inherit;cursor:pointer}
-    button:hover,select:hover{border-color:var(--active);color:var(--active)}
-    .speed-label{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:14px}
-    input[type=range]{width:220px}
-    .stage,.side{border:1px solid var(--line);border-radius:8px;background:var(--panel)}
-    .stage{padding:18px}
-    svg{display:block;width:100%;aspect-ratio:720/360;background:#fff;border:1px solid #e2e8f0;border-radius:6px}
-    .bar rect{fill:#fff;stroke:#94a3b8;stroke-width:3;rx:7}
-    .bar text{font-size:20px;font-weight:700;fill:var(--ink);text-anchor:middle;dominant-baseline:central}
-    .bar.sorted rect{fill:#dcfce7;stroke:var(--sorted)}
-    .bar.active rect{fill:#dbeafe;stroke:var(--active);stroke-width:5}
-    .bar.shift rect{fill:#ffedd5;stroke:var(--shift);stroke-width:5}
-    .marker{font-size:16px;font-weight:700;text-anchor:middle;fill:var(--active)}
-    .message{margin-top:14px;min-height:112px;padding:14px;background:#fff;border:1px solid #e2e8f0;border-radius:6px}
-    .label{margin:0 0 8px;font-size:18px;font-weight:700}.note{margin:0;color:var(--muted);line-height:1.65}
-    .side{padding:16px}pre{margin:0;overflow-x:auto;font-size:14px;line-height:1.6;counter-reset:line}code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}
-    .line{display:block;min-height:22px;padding:0 8px;border-left:3px solid transparent;white-space:pre}.line::before{counter-increment:line;content:counter(line);display:inline-block;width:2ch;margin-right:16px;color:#94a3b8;text-align:right}.line.active{background:var(--code);border-left-color:var(--active)}
-    @media(max-width:820px){main{grid-template-columns:1fr}header{align-items:flex-start;flex-direction:column}.controls{justify-content:flex-start}}
+    :root { --ink:#172033; --muted:#64748b; --line:#cbd5e1; --panel:#f8fafc; --blue:#2563eb; --green:#16a34a; --orange:#ea580c; --red:#dc2626; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:#fff; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif; }
+    main { width:min(1160px,calc(100vw - 32px)); margin:24px auto; display:grid; grid-template-columns:minmax(480px,1.2fr) minmax(320px,.8fr); gap:22px; }
+    header { grid-column:1/-1; border-bottom:1px solid var(--line); padding-bottom:14px; }
+    h1 { margin:0 0 6px; font-size:24px; }
+    header p { margin:0; color:var(--muted); }
+    .stage,.code-panel { border:1px solid var(--line); border-radius:10px; background:var(--panel); padding:18px; }
+    .stage { min-height:560px; }
+    .state { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+    .chip { padding:6px 10px; border:1px solid var(--line); border-radius:999px; background:#fff; font:600 14px ui-monospace,SFMono-Regular,Menlo,monospace; }
+    .chip strong { color:var(--blue); }
+    .array-title { display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin:14px 0 8px; }
+    .array-title h2 { margin:0; font-size:18px; }
+    .array-title span { color:var(--muted); font-size:14px; }
+    .array { display:flex; gap:10px; align-items:flex-start; min-height:132px; padding:14px 6px 8px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; }
+    .cell-wrap { width:76px; text-align:center; position:relative; }
+    .mark { height:23px; color:var(--blue); font:700 14px ui-monospace,SFMono-Regular,monospace; }
+    .cell { height:58px; display:grid; place-items:center; border:3px solid #94a3b8; border-radius:8px; background:#fff; font:700 22px ui-monospace,SFMono-Regular,monospace; transition:.18s; }
+    .cell.sorted { border-color:var(--green); background:#dcfce7; }
+    .cell.i { border-color:var(--blue); background:#dbeafe; box-shadow:0 0 0 3px #bfdbfe; }
+    .cell.j { border-color:var(--orange); background:#ffedd5; }
+    .cell.shift { border-color:var(--red); background:#fee2e2; }
+    .index { margin-top:6px; color:var(--muted); font:13px ui-monospace,SFMono-Regular,monospace; }
+    .range { margin:14px 0; padding:10px 12px; border-left:4px solid var(--green); background:#ecfdf5; line-height:1.55; }
+    .message { min-height:106px; padding:14px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; }
+    .message h2 { margin:0 0 8px; font-size:18px; }
+    .message p { margin:0; color:var(--muted); line-height:1.65; }
+    .controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:14px; }
+    button { padding:9px 14px; border:1px solid var(--line); border-radius:7px; background:#fff; color:var(--ink); font:inherit; cursor:pointer; }
+    button:hover:not(:disabled) { border-color:var(--blue); color:var(--blue); }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    #counter { margin-left:auto; color:var(--muted); font-size:14px; }
+    pre { margin:0; overflow:auto; counter-reset:line; font:14px/1.65 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; }
+    .line { display:block; padding:0 8px; border-left:3px solid transparent; white-space:pre; }
+    .line::before { counter-increment:line; content:counter(line); display:inline-block; width:2ch; margin-right:15px; color:#94a3b8; text-align:right; }
+    .line.active { border-left-color:var(--blue); background:#dbeafe; }
+    .legend { margin:16px 0 0; padding:0; list-style:none; color:var(--muted); font-size:14px; line-height:1.8; }
+    .legend b { display:inline-block; width:12px; height:12px; margin-right:6px; border:2px solid; border-radius:3px; vertical-align:-1px; }
+    @media (max-width:820px) { main { grid-template-columns:1fr; } .array { gap:5px; overflow-x:auto; } .cell-wrap { min-width:66px; width:66px; } }
   </style>
 </head>
 <body>
   <main>
     <header>
-      <h1>ch04-insertion-sort</h1>
-      <div class="controls" aria-label="再生コントロール">
-        <button id="play" type="button">再生</button>
-        <button id="restart" type="button">最初へ</button>
-        <label class="speed-label">速度<select id="speed" aria-label="再生速度"><option value="0.5">0.5x</option><option value="0.75">0.75x</option><option value="1" selected>1.0x</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2.0x</option></select></label>
-        <input id="seek" type="range" min="0" max="17000" value="0" step="20" aria-label="再生位置">
-      </div>
+      <h1>挿入ソート: 外側ループから追う</h1>
+      <p>「次へ」を押し, <code>i</code> が 1 から増える過程と, その回の <code>a</code>, <code>j</code> の役割を順に確認する.</p>
     </header>
-    <section class="stage">
-      <svg id="view" viewBox="0 0 720 360" role="img" aria-label="挿入ソートのアニメーション"></svg>
-      <div class="message"><p id="label" class="label"></p><p id="note" class="note"></p></div>
+    <section class="stage" aria-live="polite">
+      <div id="state" class="state"></div>
+      <div class="array-title"><h2>配列 <code>A</code></h2><span>緑: その回の開始時点で整列済みの区間</span></div>
+      <div id="array" class="array" aria-label="配列の状態"></div>
+      <div id="range" class="range"></div>
+      <div class="message"><h2 id="label"></h2><p id="note"></p></div>
+      <div class="controls">
+        <button id="prev" type="button">← 前へ</button>
+        <button id="next" type="button">次へ →</button>
+        <button id="restart" type="button">最初へ</button>
+        <span id="counter"></span>
+      </div>
     </section>
-    <aside class="side"><pre><code id="code"></code></pre></aside>
+    <aside class="code-panel">
+      <pre><code id="code"></code></pre>
+      <ul class="legend">
+        <li><b style="border-color:#16a34a;background:#dcfce7"></b>整列済み区間</li>
+        <li><b style="border-color:#2563eb;background:#dbeafe"></b><code>i</code>: 今回挿入する要素の添字</li>
+        <li><b style="border-color:#ea580c;background:#ffedd5"></b><code>j</code>: 比較中の左側の添字</li>
+        <li><b style="border-color:#dc2626;background:#fee2e2"></b>右へコピーする要素</li>
+      </ul>
+    </aside>
   </main>
-  <script id="framescript" type="application/json">
-{
-  "durationMs": 17000,
-  "code": [
-    "void insertion_sort(int A[], int n) {",
-    "    for (int i = 1; i <= n - 1; i++) {",
-    "        int a = A[i];",
-    "        int j = i - 1;",
-    "        while (j >= 0 && A[j] > a) {",
-    "            A[j + 1] = A[j];",
-    "            j = j - 1;",
-    "        }",
-    "        A[j + 1] = a;",
-    "    }",
-    "}"
-  ],
-  "frames": [
-    {"at":0,"values":[2,12,15,16,3,4,11],"sorted":[0,1,2,3],"active":[4],"shift":[],"i":4,"j":3,"a":3,"codeLines":[1,2,3],"label":"i = 4, a = 3 を取り出す","note":"左側 A[0] から A[3] まではすでに昇順である. まず a を入れる場所を右から探す."},
-    {"at":1800,"values":[2,12,15,16,3,4,11],"sorted":[0,1,2,3],"active":[3,4],"shift":[],"i":4,"j":3,"a":3,"codeLines":[4],"label":"A[3] = 16 と a = 3 を比較する","note":"16 > 3 なので, 16 を右へずらして空きを左へ移す."},
-    {"at":3400,"values":[2,12,15,16,16,4,11],"sorted":[0,1,2],"active":[4],"shift":[3,4],"i":4,"j":3,"a":3,"codeLines":[5,6],"label":"16 を右へずらす","note":"A[4] に 16 をコピーし, 次は j = 2 を調べる."},
-    {"at":5200,"values":[2,12,15,16,16,4,11],"sorted":[0,1,2],"active":[2,3],"shift":[],"i":4,"j":2,"a":3,"codeLines":[4],"label":"A[2] = 15 と a = 3 を比較する","note":"15 > 3 なので, 15 も右へずらす."},
-    {"at":6800,"values":[2,12,15,15,16,4,11],"sorted":[0,1],"active":[3],"shift":[2,3],"i":4,"j":2,"a":3,"codeLines":[5,6],"label":"15 を右へずらす","note":"空き位置がさらに左へ移動した."},
-    {"at":8600,"values":[2,12,15,15,16,4,11],"sorted":[0,1],"active":[1,2],"shift":[],"i":4,"j":1,"a":3,"codeLines":[4],"label":"A[1] = 12 と a = 3 を比較する","note":"12 > 3 なので, 12 も右へずらす."},
-    {"at":10200,"values":[2,12,12,15,16,4,11],"sorted":[0],"active":[2],"shift":[1,2],"i":4,"j":1,"a":3,"codeLines":[5,6],"label":"12 を右へずらす","note":"これで添字 1 が a の候補位置になる."},
-    {"at":12200,"values":[2,12,12,15,16,4,11],"sorted":[0],"active":[0,1],"shift":[],"i":4,"j":0,"a":3,"codeLines":[4],"label":"A[0] = 2 と a = 3 を比較する","note":"2 > 3 は偽である. ここで右シフトを止める."},
-    {"at":14200,"values":[2,12,12,15,16,4,11],"sorted":[0],"active":[1],"shift":[],"i":4,"j":0,"a":3,"codeLines":[8],"label":"空いた添字 1 に a を入れる","note":"A[j + 1] = A[1] に 3 を代入する."},
-    {"at":15800,"values":[2,3,12,15,16,4,11],"sorted":[0,1,2,3,4],"active":[1],"shift":[],"i":4,"j":0,"a":3,"codeLines":[8],"label":"A[0] から A[4] までが整列済みになる","note":"挿入後, 左側の整列済み区間が 1 要素広がる."}
-  ]
-}
-  </script>
   <script>
-    const script=JSON.parse(document.getElementById("framescript").textContent),svg=document.getElementById("view"),code=document.getElementById("code"),label=document.getElementById("label"),note=document.getElementById("note"),play=document.getElementById("play"),restart=document.getElementById("restart"),seek=document.getElementById("seek"),speed=document.getElementById("speed");
-    let startTime=0,elapsedBeforePlay=0,raf=0,playing=false;
-    function el(n){return document.createElementNS("http://www.w3.org/2000/svg",n)}
-    function drawCode(){code.innerHTML="";script.code.forEach((line)=>{const s=document.createElement("span");s.className="line";s.textContent=line;code.append(s)})}
-    function frameAt(ms){return script.frames.reduce((c,f)=>f.at<=ms?f:c,script.frames[0])}
-    function render(ms){const f=frameAt(ms);svg.innerHTML="";const x0=52,w=78,gap=16,y=130,h=72;f.values.forEach((v,idx)=>{const group=el("g");group.setAttribute("class",["bar",f.sorted.includes(idx)?"sorted":"",f.active.includes(idx)?"active":"",f.shift.includes(idx)?"shift":""].join(" "));group.setAttribute("transform",`translate(${x0+idx*(w+gap)} ${y})`);const r=el("rect");r.setAttribute("width",w);r.setAttribute("height",h);const t=el("text");t.setAttribute("x",w/2);t.setAttribute("y",h/2);t.textContent=v;group.append(r,t);svg.append(group);const ix=el("text");ix.setAttribute("x",x0+idx*(w+gap)+w/2);ix.setAttribute("y",y+h+30);ix.setAttribute("class","marker");ix.textContent=idx;svg.append(ix)});["i","j"].forEach((name,k)=>{if(f[name]!==undefined&&f[name]>=0){const m=el("text");m.setAttribute("x",x0+f[name]*(w+gap)+w/2);m.setAttribute("y",k?95:72);m.setAttribute("class","marker");m.textContent=`${name}=${f[name]}`;svg.append(m)}});const a=el("text");a.setAttribute("x",360);a.setAttribute("y",54);a.setAttribute("class","marker");a.textContent=`a = ${f.a}`;svg.append(a);label.textContent=f.label;note.textContent=f.note;[...code.children].forEach((line,i)=>line.classList.toggle("active",f.codeLines.includes(i)));seek.value=ms}
-    function tick(now){const ms=Math.min((now-startTime)*Number(speed.value)+elapsedBeforePlay,script.durationMs);render(ms);if(ms>=script.durationMs){playing=false;play.textContent="再生";return}raf=requestAnimationFrame(tick)}
-    function start(){if(playing)return;playing=true;play.textContent="一時停止";startTime=performance.now();raf=requestAnimationFrame(tick)}
-    function pause(){playing=false;play.textContent="再生";cancelAnimationFrame(raf);elapsedBeforePlay=Number(seek.value)}
-    play.addEventListener("click",()=>playing?pause():start());restart.addEventListener("click",()=>{pause();elapsedBeforePlay=0;render(0)});seek.addEventListener("input",()=>{elapsedBeforePlay=Number(seek.value);render(elapsedBeforePlay);if(playing){startTime=performance.now()}});speed.addEventListener("change",()=>{if(playing){elapsedBeforePlay=Number(seek.value);startTime=performance.now()}});
-    drawCode();render(0);
+    const codeLines = [
+      'void insertion_sort(int A[], int n) {',
+      '    for (int i = 1; i <= n - 1; i++) {',
+      '        int a = A[i];',
+      '        int j = i - 1;',
+      '        while (j >= 0 && A[j] > a) {',
+      '            A[j + 1] = A[j];',
+      '            j = j - 1;',
+      '        }',
+      '        A[j + 1] = a;',
+      '    }',
+      '}'
+    ];
+    const initial = [5, 2, 4, 6, 1];
+    const steps = [];
+    const copy = a => [...a];
+    function add({values, i=null, j=null, a=null, sortedEnd=-1, shift=[], lines=[], label, note}) {
+      steps.push({values:copy(values), i, j, a, sortedEnd, shift, lines, label, note});
+    }
+    function makeSteps() {
+      const A = copy(initial);
+      add({values:A, lines:[0], label:'開始: まだ整列済み区間は A[0] だけである', note:'挿入ソートは A[0] を長さ 1 の整列済み区間とみなし, その右の要素を 1 つずつこの区間へ入れる.'});
+      for (let i = 1; i < A.length; i++) {
+        const sortedEnd = i - 1;
+        add({values:A, i, sortedEnd, lines:[1], label:`外側ループ: i = ${i} になる`, note:`for 文が i を 1 ずつ増やす. A[0] から A[${sortedEnd}] までは前回までに整列済みであり, 今回は A[${i}] をそこへ挿入する.`});
+        const a = A[i];
+        let j = i - 1;
+        add({values:A, i, j, a, sortedEnd, lines:[2,3], label:`a = A[${i}] = ${a} を退避し, j = ${j} とする`, note:'a は挿入したい値を一時的に保存する変数である. これから A[j] を右へコピーしても, a 自身は失われない.'});
+        while (j >= 0) {
+          add({values:A, i, j, a, sortedEnd, lines:[4], label:`A[${j}] = ${A[j]} と a = ${a} を比較する`, note:`条件 A[j] > a は ${A[j] > a ? '真' : '偽'}である.${A[j] > a ? ' A[j] を右へずらす.' : ' 右シフトを止め, j + 1 に a を入れる.'}`});
+          if (A[j] <= a) break;
+          const moved = A[j];
+          A[j + 1] = moved;
+          add({values:A, i, j, a, sortedEnd, shift:[j, j + 1], lines:[5], label:`A[${j + 1}] = A[${j}] = ${moved}: ${moved} を右へコピーする`, note:'交換ではなくコピーである. a は別の変数に退避済みなので, 空き位置は 1 つ左へ移動する.'});
+          j--;
+          add({values:A, i, j, a, sortedEnd, lines:[6], label:`j = ${j} に更新する`, note:'次はさらに左の要素と a を比較する. j が -1 なら, a は先頭 A[0] に入る.'});
+        }
+        A[j + 1] = a;
+        add({values:A, i, j, a, sortedEnd:i, lines:[8], label:`A[${j + 1}] = a = ${a}: 挿入完了`, note:`A[0] から A[${i}] までが昇順に整列済みになった. 次の外側ループでは i が ${i + 1} になる.`});
+      }
+      add({values:A, sortedEnd:A.length - 1, lines:[10], label:'完了: 配列全体が整列済みである', note:'外側ループが i = n - 1 まで終わったため, A[0] から A[n - 1] の全体が昇順に並ぶ.'});
+    }
+    const array = document.getElementById('array');
+    const state = document.getElementById('state');
+    const range = document.getElementById('range');
+    const label = document.getElementById('label');
+    const note = document.getElementById('note');
+    const code = document.getElementById('code');
+    const counter = document.getElementById('counter');
+    const prev = document.getElementById('prev');
+    const next = document.getElementById('next');
+    let position = 0;
+    function drawCode() { codeLines.forEach(line => { const s = document.createElement('span'); s.className = 'line'; s.textContent = line; code.append(s); }); }
+    function chip(name, value) { return `<span class="chip"><strong>${name}</strong> = ${value}</span>`; }
+    function render() {
+      const s = steps[position];
+      state.innerHTML = [chip('i', s.i === null ? '開始前' : s.i), chip('j', s.j === null ? '未設定' : s.j), chip('a', s.a === null ? '未退避' : s.a)].join('');
+      array.innerHTML = '';
+      s.values.forEach((value, index) => {
+        const wrap = document.createElement('div'); wrap.className = 'cell-wrap';
+        const mark = document.createElement('div'); mark.className = 'mark';
+        mark.textContent = `${index === s.i ? 'i' : ''}${index === s.j ? (index === s.i ? ', j' : 'j') : ''}`;
+        const cell = document.createElement('div');
+        cell.className = `cell${index <= s.sortedEnd ? ' sorted' : ''}${index === s.i ? ' i' : ''}${index === s.j ? ' j' : ''}${s.shift.includes(index) ? ' shift' : ''}`;
+        cell.textContent = value;
+        const idx = document.createElement('div'); idx.className = 'index'; idx.textContent = `A[${index}]`;
+        wrap.append(mark, cell, idx); array.append(wrap);
+      });
+      range.innerHTML = s.sortedEnd >= 0 ? `<b>整列済み区間:</b> A[0] から A[${s.sortedEnd}]` : '<b>整列済み区間:</b> これから A[0] を基準に作る';
+      label.textContent = s.label; note.textContent = s.note;
+      [...code.children].forEach((line, i) => line.classList.toggle('active', s.lines.includes(i)));
+      prev.disabled = position === 0; next.disabled = position === steps.length - 1;
+      counter.textContent = `${position + 1} / ${steps.length}`;
+    }
+    makeSteps(); drawCode(); render();
+    prev.addEventListener('click', () => { position--; render(); });
+    next.addEventListener('click', () => { position++; render(); });
+    document.getElementById('restart').addEventListener('click', () => { position = 0; render(); });
   </script>
 </body>
 </html>
