@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ch13-max-flow</title>
+  <style>
+    :root{color-scheme:light;--ink:#172033;--muted:#64748b;--panel:#f8fafc;--line:#cbd5e1;--active:#2563eb;--done:#16a34a;--swap:#f97316;--code:#eef2ff}*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;color:var(--ink);background:#fff}main{display:grid;grid-template-columns:minmax(420px,1.1fr) minmax(320px,.9fr);gap:24px;width:min(1120px,calc(100vw - 32px));margin:24px auto;align-items:start}header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:16px;border-bottom:1px solid var(--line);padding-bottom:14px}h1{margin:0;font-size:24px;line-height:1.25}.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}button,select{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:6px;padding:8px 12px;font:inherit;cursor:pointer}button:hover,select:hover{border-color:var(--active);color:var(--active)}.speed-label{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:14px}input[type=range]{width:220px}.stage,.side{border:1px solid var(--line);border-radius:8px;background:var(--panel)}.stage{padding:18px}svg{display:block;width:100%;aspect-ratio:720/460;background:#fff;border:1px solid #e2e8f0;border-radius:6px}.cell rect{fill:#fff;stroke:#94a3b8;stroke-width:2;rx:6}.cell text{font-size:14px;font-weight:700;text-anchor:middle}.cell.active rect{fill:#dbeafe;stroke:var(--active);stroke-width:4}.cell.bucketActive rect{fill:#ffedd5;stroke:var(--swap);stroke-width:4}.cell.filled rect,.cell.done rect{fill:#dcfce7;stroke:var(--done);stroke-width:3}.edge{stroke:#94a3b8;stroke-width:3;marker-end:url(#arrow)}.edge.active{stroke:var(--active);stroke-width:5;marker-end:url(#arrow-active)}.bucket rect,.node rect{fill:#fff;stroke:#94a3b8;stroke-width:2;rx:5}.bucket text,.node text{font-size:16px;font-weight:700;text-anchor:middle;dominant-baseline:central}.bucket.active rect,.node.active rect{fill:#dbeafe;stroke:var(--active);stroke-width:4}.node.done rect{fill:#dcfce7;stroke:var(--done);stroke-width:4}.marker{font-size:13px;font-weight:700;text-anchor:middle;fill:var(--active)}.formula{font-size:16px;font-weight:700;fill:var(--ink)}.calc{font-size:16px;fill:var(--ink)}.rowlabel{font-size:13px;font-weight:700;fill:var(--muted)}.nil{font-size:15px;font-weight:700;fill:var(--muted)}.message{margin-top:14px;min-height:112px;padding:14px;background:#fff;border:1px solid #e2e8f0;border-radius:6px}.label{margin:0 0 8px;font-size:18px;font-weight:700}.note{margin:0;color:var(--muted);line-height:1.65}.side{padding:16px}pre{margin:0;overflow-x:auto;font-size:14px;line-height:1.6;counter-reset:line}code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}.line{display:block;min-height:22px;padding:0 8px;border-left:3px solid transparent;white-space:pre}.line::before{counter-increment:line;content:counter(line);display:inline-block;width:2ch;margin-right:16px;color:#94a3b8;text-align:right}.line.active{background:var(--code);border-left-color:var(--active)}@media(max-width:820px){main{grid-template-columns:1fr}header{align-items:flex-start;flex-direction:column}.controls{justify-content:flex-start}}
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>ch13-max-flow</h1>
+      <div class="controls" aria-label="再生コントロール">
+        <button id="play" type="button">再生</button>
+        <button id="restart" type="button">最初へ</button>
+        <label class="speed-label">速度
+          <select id="speed" aria-label="再生速度">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1.0x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2.0x</option>
+          </select>
+        </label>
+        <input id="seek" type="range" min="0" max="16800" value="0" step="20" aria-label="再生位置">
+      </div>
+    </header>
+    <section class="stage"><svg id="view" viewBox="0 0 720 460" role="img" aria-label="増加パス法による最大流の計算. 流れと補助グラフを交互に示し, 増加パスに沿った流量更新と最小カットによる終了判定を追う"></svg><div class="message"><p id="label" class="label"></p><p id="note" class="note"></p></div></section>
+    <aside class="side"><pre><code id="code"></code></pre></aside>
+  </main>
+  <script id="framescript" type="application/json">
+{
+  "durationMs": 16800,
+  "code": [
+    "void maximum_flow(Graph G, real c[][], Vertex s, Vertex t) {",
+    "    for (each edge (u,v) in E) {",
+    "        f[u][v] = 0;",
+    "    }",
+    "",
+    "    while (true) {",
+    "        build residual graph G_f;",
+    "        P = find directed (s,t)-path in G_f;",
+    "        if (P == NULL) break;",
+    "",
+    "        delta = min{ g(u,v) : (u,v) in P };",
+    "        for (each edge (u,v) in P) {",
+    "            if ((u,v) in E) f[u][v] += delta;",
+    "            else            f[v][u] -= delta;",
+    "        }",
+    "    }",
+    "}"
+  ],
+  "frames": [
+    {
+      "at": 0,
+      "mode": "flow",
+      "flows": {
+        "e1": 2,
+        "e2": 0,
+        "e3": 1,
+        "e4": 1,
+        "e5": 1,
+        "e6": 1,
+        "e7": 1,
+        "e8": 2,
+        "e9": 1
+      },
+      "codeLines": [
+        0,
+        5
+      ],
+      "label": "初期の流れ: s からの流出量 = 3",
+      "note": "辺のラベルは (容量, 流量). 講義の例に合わせて流出量 3 の流れから始める (アルゴリズム上は f=0 から始めてよい). ここから容量制約と流量保存則を崩さずに流出量を増やしていく."
+    },
+    {
+      "at": 1400,
+      "mode": "residual",
+      "flows": {
+        "e1": 2,
+        "e2": 0,
+        "e3": 1,
+        "e4": 1,
+        "e5": 1,
+        "e6": 1,
+        "e7": 1,
+        "e8": 2,
+        "e9": 1
+      },
+      "codeLines": [
+        6
+      ],
+      "label": "補助グラフ (残余グラフ) G_f の構成",
+      "note": "容量未満しか流れていない辺 (u,v) には余裕 c-f の順方向の辺を, 正の流量がある辺には余裕 f の逆向きの辺を張る. 緑の数字は余裕 g で, すべて正の値である."
+    },
+    {
+      "at": 2800,
+      "mode": "residual",
+      "flows": {
+        "e1": 2,
+        "e2": 0,
+        "e3": 1,
+        "e4": 1,
+        "e5": 1,
+        "e6": 1,
+        "e7": 1,
+        "e8": 2,
+        "e9": 1
+      },
+      "path": [
+        [
+          "s",
+          "v4"
+        ],
+        [
+          "v4",
+          "v1"
+        ],
+        [
+          "v1",
+          "v2"
+        ],
+        [
+          "v2",
+          "t"
+        ]
+      ],
+      "codeLines": [
+        7,
+        8
+      ],
+      "label": "増加パス s → v4 → v1 → v2 → t",
+      "note": "G_f の有向 (s,t) パスが増加パスである. v4→v1 は元の辺 v1→v4 (流量 1) の逆向きの辺で, 流量を減らせることを表す."
+    },
+    {
+      "at": 4200,
+      "mode": "residual",
+      "flows": {
+        "e1": 2,
+        "e2": 0,
+        "e3": 1,
+        "e4": 1,
+        "e5": 1,
+        "e6": 1,
+        "e7": 1,
+        "e8": 2,
+        "e9": 1
+      },
+      "path": [
+        [
+          "s",
+          "v4"
+        ],
+        [
+          "v4",
+          "v1"
+        ],
+        [
+          "v1",
+          "v2"
+        ],
+        [
+          "v2",
+          "t"
+        ]
+      ],
+      "formula": "δ = min{2, 1, 3, 1} = 1",
+      "codeLines": [
+        10
+      ],
+      "label": "流す量 δ の決定",
+      "note": "パスが通る辺の余裕 g の最小値を δ とする. ここでは s→v4 の余裕 2, v4→v1 の余裕 1, v1→v2 の余裕 3, v2→t の余裕 1 の最小値 1."
+    },
+    {
+      "at": 5600,
+      "mode": "flow",
+      "flows": {
+        "e1": 2,
+        "e2": 1,
+        "e3": 1,
+        "e4": 2,
+        "e5": 0,
+        "e6": 1,
+        "e7": 1,
+        "e8": 3,
+        "e9": 1
+      },
+      "changed": [
+        "e2",
+        "e4",
+        "e5",
+        "e8"
+      ],
+      "codeLines": [
+        11,
+        12,
+        13
+      ],
+      "label": "流れの更新: 流出量 3 → 4",
+      "note": "元の辺と同じ向きに使った s→v4, v1→v2, v2→t は +1, 逆向きに使った v1→v4 は -1 する. どの頂点でも流量保存則は保たれている."
+    },
+    {
+      "at": 7000,
+      "mode": "residual",
+      "flows": {
+        "e1": 2,
+        "e2": 1,
+        "e3": 1,
+        "e4": 2,
+        "e5": 0,
+        "e6": 1,
+        "e7": 1,
+        "e8": 3,
+        "e9": 1
+      },
+      "codeLines": [
+        6
+      ],
+      "label": "補助グラフを作り直す",
+      "note": "流れ f が変わったので余裕も変わる. v1→v4 は流量 0 になったので逆向きの辺が消え, v2→t は飽和したので順方向の辺が消えた."
+    },
+    {
+      "at": 8400,
+      "mode": "residual",
+      "flows": {
+        "e1": 2,
+        "e2": 1,
+        "e3": 1,
+        "e4": 2,
+        "e5": 0,
+        "e6": 1,
+        "e7": 1,
+        "e8": 3,
+        "e9": 1
+      },
+      "path": [
+        [
+          "s",
+          "v4"
+        ],
+        [
+          "v4",
+          "t"
+        ]
+      ],
+      "codeLines": [
+        7,
+        8
+      ],
+      "label": "増加パス s → v4 → t",
+      "note": "今度は 2 本の順方向の辺だけからなる短い増加パスが見つかる."
+    },
+    {
+      "at": 9800,
+      "mode": "residual",
+      "flows": {
+        "e1": 2,
+        "e2": 1,
+        "e3": 1,
+        "e4": 2,
+        "e5": 0,
+        "e6": 1,
+        "e7": 1,
+        "e8": 3,
+        "e9": 1
+      },
+      "path": [
+        [
+          "s",
+          "v4"
+        ],
+        [
+          "v4",
+          "t"
+        ]
+      ],
+      "formula": "δ = min{1, 2} = 1",
+      "codeLines": [
+        10
+      ],
+      "label": "流す量 δ の決定",
+      "note": "s→v4 の余裕 1 と v4→t の余裕 2 の最小値 1 を流す."
+    },
+    {
+      "at": 11200,
+      "mode": "flow",
+      "flows": {
+        "e1": 2,
+        "e2": 2,
+        "e3": 1,
+        "e4": 2,
+        "e5": 0,
+        "e6": 1,
+        "e7": 1,
+        "e8": 3,
+        "e9": 2
+      },
+      "changed": [
+        "e2",
+        "e9"
+      ],
+      "codeLines": [
+        11,
+        12
+      ],
+      "label": "流れの更新: 流出量 4 → 5",
+      "note": "s→v4 と v4→t を +1 する. s からの流出量は 2+2+1 = 5 になった."
+    },
+    {
+      "at": 12600,
+      "mode": "residual",
+      "flows": {
+        "e1": 2,
+        "e2": 2,
+        "e3": 1,
+        "e4": 2,
+        "e5": 0,
+        "e6": 1,
+        "e7": 1,
+        "e8": 3,
+        "e9": 2
+      },
+      "codeLines": [
+        6
+      ],
+      "label": "補助グラフを作り直す",
+      "note": "s から出る辺のうち s→v1 と s→v4 は飽和し, 順方向の辺は s→v3 しか残っていない."
+    },
+    {
+      "at": 14000,
+      "mode": "residual",
+      "flows": {
+        "e1": 2,
+        "e2": 2,
+        "e3": 1,
+        "e4": 2,
+        "e5": 0,
+        "e6": 1,
+        "e7": 1,
+        "e8": 3,
+        "e9": 2
+      },
+      "X": [
+        "s",
+        "v3"
+      ],
+      "codeLines": [
+        7,
+        8
+      ],
+      "label": "増加パスなし → 終了",
+      "note": "G_f で s から到達できる頂点は X = {s, v3} (橙色) だけで, t に届く有向パスが存在しない. while ループを抜ける."
+    },
+    {
+      "at": 15400,
+      "mode": "flow",
+      "flows": {
+        "e1": 2,
+        "e2": 2,
+        "e3": 1,
+        "e4": 2,
+        "e5": 0,
+        "e6": 1,
+        "e7": 1,
+        "e8": 3,
+        "e9": 2
+      },
+      "X": [
+        "s",
+        "v3"
+      ],
+      "cutEdges": [
+        "e1",
+        "e2",
+        "e6"
+      ],
+      "formula": "cap(X) = 2 + 2 + 1 = 5",
+      "codeLines": [
+        15,
+        16
+      ],
+      "label": "最大流 = 5 = cap(X)",
+      "note": "X から外へ出る辺 s→v1, s→v4, v3→v4 (橙色) の容量合計 cap(X)=5 が流出量と一致する. 最大流最小カット定理より, この流れは最大流であり X は最小 s-t カットである."
+    }
+  ]
+}
+  </script>
+  <script>
+    const script=JSON.parse(document.getElementById("framescript").textContent),svg=document.getElementById("view"),code=document.getElementById("code"),label=document.getElementById("label"),note=document.getElementById("note"),play=document.getElementById("play"),restart=document.getElementById("restart"),seek=document.getElementById("seek"),speed=document.getElementById("speed");
+    let startTime=0,elapsedBeforePlay=0,raf=0,playing=false;
+    function el(n){return document.createElementNS("http://www.w3.org/2000/svg",n)}
+    function write(x,y,s,cls){const t=el("text");t.setAttribute("x",x);t.setAttribute("y",y);t.setAttribute("class",cls);t.textContent=s;svg.append(t)}
+    function marker(id,color){const m=el("marker"),p=el("path");m.setAttribute("id",id);m.setAttribute("viewBox","0 0 10 10");m.setAttribute("refX","9");m.setAttribute("refY","5");m.setAttribute("markerWidth","7");m.setAttribute("markerHeight","7");m.setAttribute("orient","auto");p.setAttribute("d","M 0 0 L 10 5 L 0 10 z");p.setAttribute("fill",color);m.append(p);return m}
+    function arrowDefs(){const defs=el("defs");defs.append(marker("arrow","#94a3b8"),marker("arrow-active","#2563eb"));svg.append(defs)}
+    function drawCode(){script.code.forEach((line)=>{const s=document.createElement("span");s.className="line";s.textContent=line;code.append(s)})}
+    function frameIndexAt(ms){let idx=0;script.frames.forEach((f,i)=>{if(f.at<=ms)idx=i});return idx}
+    function highlightCode(f){[...code.children].forEach((line,i)=>line.classList.toggle("active",f.codeLines.includes(i)))}
+    // ---- BEGIN custom render (per-algorithm; must define function render(ms){...}) ----
+const NODES = {
+  s:  {x: 70,  y: 230, src: true},
+  v1: {x: 240, y: 100},
+  v2: {x: 450, y: 100},
+  v3: {x: 220, y: 370},
+  v4: {x: 450, y: 320},
+  t:  {x: 650, y: 210, src: true}
+};
+const NODE_LABEL = {s: "s", v1: "v1", v2: "v2", v3: "v3", v4: "v4", t: "t"};
+const EDGES = [
+  {id: "e1", u: "s",  v: "v1", c: 2, lp: 0.5,  dx: -32, dy: -10},
+  {id: "e2", u: "s",  v: "v4", c: 2, lp: 0.5,  dx: 0,   dy: 22},
+  {id: "e3", u: "s",  v: "v3", c: 2, lp: 0.5,  dx: -32, dy: 8},
+  {id: "e4", u: "v1", v: "v2", c: 4, lp: 0.5,  dx: 0,   dy: -14},
+  {id: "e5", u: "v1", v: "v4", c: 3, lp: 0.3,  dx: 22,  dy: -2},
+  {id: "e6", u: "v3", v: "v4", c: 1, lp: 0.5,  dx: 0,   dy: 22},
+  {id: "e7", u: "v4", v: "v2", c: 1, lp: 0.5,  dx: 24,  dy: 0},
+  {id: "e8", u: "v2", v: "t",  c: 3, lp: 0.5,  dx: 16,  dy: -10},
+  {id: "e9", u: "v4", v: "t",  c: 3, lp: 0.5,  dx: 10,  dy: 22}
+];
+const R = 22;
+
+function trimmed(pa, pb, cut) {
+  const dx = pb.x - pa.x, dy = pb.y - pa.y;
+  const len = Math.hypot(dx, dy);
+  const ux = dx / len, uy = dy / len;
+  return {
+    x1: pa.x + ux * cut, y1: pa.y + uy * cut,
+    x2: pb.x - ux * cut, y2: pb.y - uy * cut,
+    nx: -uy, ny: ux
+  };
+}
+
+function inPath(f, a, b) {
+  if (!f.path) return false;
+  return f.path.some((p) => p[0] === a && p[1] === b);
+}
+
+function drawStraight(a, b, color, width, markerId) {
+  const t = trimmed(NODES[a], NODES[b], R + 4);
+  const line = el("line");
+  line.setAttribute("x1", t.x1);
+  line.setAttribute("y1", t.y1);
+  line.setAttribute("x2", t.x2);
+  line.setAttribute("y2", t.y2);
+  line.setAttribute("stroke", color);
+  line.setAttribute("stroke-width", width);
+  line.setAttribute("marker-end", "url(#" + markerId + ")");
+  svg.append(line);
+}
+
+function drawCurved(a, b, color, width, markerId, labelText, labelColor) {
+  const t = trimmed(NODES[a], NODES[b], R + 5);
+  const mx = (t.x1 + t.x2) / 2, my = (t.y1 + t.y2) / 2;
+  const cx = mx + t.nx * 18, cy = my + t.ny * 18;
+  const p = el("path");
+  p.setAttribute("d", "M " + t.x1 + " " + t.y1 + " Q " + cx + " " + cy + " " + t.x2 + " " + t.y2);
+  p.setAttribute("fill", "none");
+  p.setAttribute("stroke", color);
+  p.setAttribute("stroke-width", width);
+  p.setAttribute("marker-end", "url(#" + markerId + ")");
+  svg.append(p);
+  const bx = 0.25 * t.x1 + 0.5 * cx + 0.25 * t.x2;
+  const by = 0.25 * t.y1 + 0.5 * cy + 0.25 * t.y2;
+  const txt = el("text");
+  txt.setAttribute("x", bx + t.nx * 13);
+  txt.setAttribute("y", by + t.ny * 13 + 4);
+  txt.setAttribute("text-anchor", "middle");
+  txt.setAttribute("font-size", "13");
+  txt.setAttribute("font-weight", "700");
+  txt.setAttribute("fill", labelColor);
+  txt.textContent = labelText;
+  svg.append(txt);
+}
+
+function drawNodes(f) {
+  Object.keys(NODES).forEach((v) => {
+    const p = NODES[v];
+    const inX = f.X && f.X.indexOf(v) >= 0;
+    const circle = el("circle");
+    circle.setAttribute("cx", p.x);
+    circle.setAttribute("cy", p.y);
+    circle.setAttribute("r", R);
+    circle.setAttribute("fill", inX ? "#ffedd5" : (p.src ? "#dbeafe" : "#ffffff"));
+    circle.setAttribute("stroke", inX ? "#f97316" : (p.src ? "#2563eb" : "#94a3b8"));
+    circle.setAttribute("stroke-width", inX ? "4" : "3");
+    svg.append(circle);
+    const t = el("text");
+    t.setAttribute("x", p.x);
+    t.setAttribute("y", p.y + 5);
+    t.setAttribute("text-anchor", "middle");
+    t.setAttribute("font-size", "15");
+    t.setAttribute("font-weight", "700");
+    t.textContent = NODE_LABEL[v];
+    svg.append(t);
+  });
+}
+
+function render(ms) {
+  const f = script.frames[frameIndexAt(ms)];
+  svg.innerHTML = "";
+  const defs = el("defs");
+  defs.append(
+    marker("arrow", "#94a3b8"),
+    marker("arrow-active", "#2563eb"),
+    marker("arrow-cut", "#f97316")
+  );
+  svg.append(defs);
+
+  if (f.mode === "flow") {
+    EDGES.forEach((e) => {
+      const changed = f.changed && f.changed.indexOf(e.id) >= 0;
+      const cut = f.cutEdges && f.cutEdges.indexOf(e.id) >= 0;
+      const color = cut ? "#f97316" : (changed ? "#2563eb" : "#94a3b8");
+      const markerId = cut ? "arrow-cut" : (changed ? "arrow-active" : "arrow");
+      drawStraight(e.u, e.v, color, (changed || cut) ? 4.5 : 3, markerId);
+      const pa = NODES[e.u], pb = NODES[e.v];
+      const lx = pa.x + (pb.x - pa.x) * e.lp + e.dx;
+      const ly = pa.y + (pb.y - pa.y) * e.lp + e.dy;
+      const t = el("text");
+      t.setAttribute("x", lx);
+      t.setAttribute("y", ly + 4);
+      t.setAttribute("text-anchor", "middle");
+      t.setAttribute("font-size", "13");
+      t.setAttribute("font-weight", "700");
+      t.setAttribute("fill", cut ? "#f97316" : (changed ? "#2563eb" : "#172033"));
+      t.textContent = "(" + e.c + ", " + f.flows[e.id] + ")";
+      svg.append(t);
+    });
+  } else {
+    EDGES.forEach((e) => {
+      const slack = e.c - f.flows[e.id];
+      const rev = f.flows[e.id];
+      if (slack > 0) {
+        const active = inPath(f, e.u, e.v);
+        drawCurved(e.u, e.v, active ? "#2563eb" : "#94a3b8", active ? 5 : 2.5,
+          active ? "arrow-active" : "arrow", String(slack), active ? "#2563eb" : "#16a34a");
+      }
+      if (rev > 0) {
+        const active = inPath(f, e.v, e.u);
+        drawCurved(e.v, e.u, active ? "#2563eb" : "#94a3b8", active ? 5 : 2.5,
+          active ? "arrow-active" : "arrow", String(rev), active ? "#2563eb" : "#16a34a");
+      }
+    });
+  }
+
+  drawNodes(f);
+  if (f.formula) write(20, 34, f.formula, "formula");
+
+  label.textContent = f.label;
+  note.textContent = f.note;
+  highlightCode(f);
+  seek.value = ms;
+}
+    // ---- END custom render ----
+    function tick(now){const ms=Math.min((now-startTime)*Number(speed.value)+elapsedBeforePlay,script.durationMs);render(ms);if(ms>=script.durationMs){playing=false;play.textContent="再生";return}raf=requestAnimationFrame(tick)}
+    function start(){if(playing)return;playing=true;play.textContent="一時停止";startTime=performance.now();raf=requestAnimationFrame(tick)}
+    function pause(){playing=false;play.textContent="再生";cancelAnimationFrame(raf);elapsedBeforePlay=Number(seek.value)}
+    play.addEventListener("click",()=>playing?pause():start());
+    restart.addEventListener("click",()=>{pause();elapsedBeforePlay=0;render(0)});
+    seek.addEventListener("input",()=>{elapsedBeforePlay=Number(seek.value);render(elapsedBeforePlay);if(playing)startTime=performance.now()});
+    speed.addEventListener("change",()=>{if(playing){elapsedBeforePlay=Number(seek.value);startTime=performance.now()}});
+    drawCode();render(0);
+  </script>
+</body>
+</html>

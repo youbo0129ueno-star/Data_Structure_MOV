@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ch13-bipartite-matching</title>
+  <style>
+    :root{color-scheme:light;--ink:#172033;--muted:#64748b;--panel:#f8fafc;--line:#cbd5e1;--active:#2563eb;--done:#16a34a;--swap:#f97316;--code:#eef2ff}*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;color:var(--ink);background:#fff}main{display:grid;grid-template-columns:minmax(420px,1.1fr) minmax(320px,.9fr);gap:24px;width:min(1120px,calc(100vw - 32px));margin:24px auto;align-items:start}header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:16px;border-bottom:1px solid var(--line);padding-bottom:14px}h1{margin:0;font-size:24px;line-height:1.25}.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}button,select{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:6px;padding:8px 12px;font:inherit;cursor:pointer}button:hover,select:hover{border-color:var(--active);color:var(--active)}.speed-label{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:14px}input[type=range]{width:220px}.stage,.side{border:1px solid var(--line);border-radius:8px;background:var(--panel)}.stage{padding:18px}svg{display:block;width:100%;aspect-ratio:720/460;background:#fff;border:1px solid #e2e8f0;border-radius:6px}.cell rect{fill:#fff;stroke:#94a3b8;stroke-width:2;rx:6}.cell text{font-size:14px;font-weight:700;text-anchor:middle}.cell.active rect{fill:#dbeafe;stroke:var(--active);stroke-width:4}.cell.bucketActive rect{fill:#ffedd5;stroke:var(--swap);stroke-width:4}.cell.filled rect,.cell.done rect{fill:#dcfce7;stroke:var(--done);stroke-width:3}.edge{stroke:#94a3b8;stroke-width:3;marker-end:url(#arrow)}.edge.active{stroke:var(--active);stroke-width:5;marker-end:url(#arrow-active)}.bucket rect,.node rect{fill:#fff;stroke:#94a3b8;stroke-width:2;rx:5}.bucket text,.node text{font-size:16px;font-weight:700;text-anchor:middle;dominant-baseline:central}.bucket.active rect,.node.active rect{fill:#dbeafe;stroke:var(--active);stroke-width:4}.node.done rect{fill:#dcfce7;stroke:var(--done);stroke-width:4}.marker{font-size:13px;font-weight:700;text-anchor:middle;fill:var(--active)}.formula{font-size:16px;font-weight:700;fill:var(--ink)}.calc{font-size:16px;fill:var(--ink)}.rowlabel{font-size:13px;font-weight:700;fill:var(--muted)}.nil{font-size:15px;font-weight:700;fill:var(--muted)}.message{margin-top:14px;min-height:112px;padding:14px;background:#fff;border:1px solid #e2e8f0;border-radius:6px}.label{margin:0 0 8px;font-size:18px;font-weight:700}.note{margin:0;color:var(--muted);line-height:1.65}.side{padding:16px}pre{margin:0;overflow-x:auto;font-size:14px;line-height:1.6;counter-reset:line}code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}.line{display:block;min-height:22px;padding:0 8px;border-left:3px solid transparent;white-space:pre}.line::before{counter-increment:line;content:counter(line);display:inline-block;width:2ch;margin-right:16px;color:#94a3b8;text-align:right}.line.active{background:var(--code);border-left-color:var(--active)}@media(max-width:820px){main{grid-template-columns:1fr}header{align-items:flex-start;flex-direction:column}.controls{justify-content:flex-start}}
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>ch13-bipartite-matching</h1>
+      <div class="controls" aria-label="再生コントロール">
+        <button id="play" type="button">再生</button>
+        <button id="restart" type="button">最初へ</button>
+        <label class="speed-label">速度
+          <select id="speed" aria-label="再生速度">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1.0x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2.0x</option>
+          </select>
+        </label>
+        <input id="seek" type="range" min="0" max="11200" value="0" step="20" aria-label="再生位置">
+      </div>
+    </header>
+    <section class="stage"><svg id="view" viewBox="0 0 720 460" role="img" aria-label="2部グラフの最大マッチング問題を最大流問題に帰着し, 増加パスでマッチングを組み替えながら最大マッチングを求めるアニメーション"></svg><div class="message"><p id="label" class="label"></p><p id="note" class="note"></p></div></section>
+    <aside class="side"><pre><code id="code"></code></pre></aside>
+  </main>
+  <script id="framescript" type="application/json">
+{
+  "durationMs": 11200,
+  "code": [
+    "// 2部グラフ G=(U,V,E) の最大マッチング",
+    "build network N:",
+    "    add source s and sink t;",
+    "    for (each u in U) add edge (s,u) with capacity 1;",
+    "    for (each v in V) add edge (v,t) with capacity 1;",
+    "    direct each edge in E from U to V, capacity INF;",
+    "",
+    "f = maximum_flow(N, s, t);   // 増加パス法",
+    "M = { (u,v) in E : f[u][v] == 1 };   // 最大マッチング"
+  ],
+  "frames": [
+    {
+      "at": 0,
+      "stage": "graph",
+      "matching": [],
+      "codeLines": [
+        0
+      ],
+      "label": "2部グラフ G = (U, V, E)",
+      "note": "頂点集合が U = {u1,u2,u3} と V = {v1,v2,v3} に分かれ, 辺は U と V の間にだけある. 端点を共有しない辺の集合 (マッチング) の辺数を最大にしたい."
+    },
+    {
+      "at": 1400,
+      "stage": "network",
+      "flows": {},
+      "codeLines": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "label": "最大流問題への帰着",
+      "note": "ソース s とシンク t を追加し, s→U の辺と V→t の辺は容量 1, U→V の辺は容量 ∞ の有向辺にする. この網の最大流がそのまま最大マッチングになる."
+    },
+    {
+      "at": 2800,
+      "stage": "network",
+      "flows": {},
+      "path": [
+        [
+          "s",
+          "u1"
+        ],
+        [
+          "u1",
+          "w1"
+        ],
+        [
+          "w1",
+          "t"
+        ]
+      ],
+      "codeLines": [
+        7
+      ],
+      "label": "増加パス s → u1 → v1 → t (δ = 1)",
+      "note": "容量がすべて 1 以上なので δ = 1. 単位量の流れ 1 本がマッチングの辺 1 本に対応する."
+    },
+    {
+      "at": 4200,
+      "stage": "network",
+      "flows": {
+        "su1": 1,
+        "m1": 1,
+        "w1t": 1
+      },
+      "matching": [
+        "m1"
+      ],
+      "codeLines": [
+        7
+      ],
+      "label": "マッチング {(u1, v1)}: 大きさ 1",
+      "note": "流量 1 の辺 u1→v1 (緑) がマッチングの辺である. s→u1 と v1→t は飽和した."
+    },
+    {
+      "at": 5600,
+      "stage": "network",
+      "flows": {
+        "su1": 1,
+        "m1": 1,
+        "w1t": 1
+      },
+      "matching": [
+        "m1"
+      ],
+      "path": [
+        [
+          "s",
+          "u2"
+        ],
+        [
+          "u2",
+          "w1"
+        ],
+        [
+          "w1",
+          "u1"
+        ],
+        [
+          "u1",
+          "w2"
+        ],
+        [
+          "w2",
+          "t"
+        ]
+      ],
+      "codeLines": [
+        7
+      ],
+      "label": "増加パス s → u2 → v1 → u1 → v2 → t",
+      "note": "u2 の唯一の相手 v1 は使用済みだが, 補助グラフには流量 1 の辺 u1→v1 の逆向きの辺 v1→u1 がある. これを使うと u1 の相手を付け替えられる."
+    },
+    {
+      "at": 7000,
+      "stage": "network",
+      "flows": {
+        "su1": 1,
+        "su2": 1,
+        "m2": 1,
+        "m3": 1,
+        "w1t": 1,
+        "w2t": 1
+      },
+      "matching": [
+        "m3",
+        "m2"
+      ],
+      "codeLines": [
+        7
+      ],
+      "label": "マッチング {(u2, v1), (u1, v2)}: 大きさ 2",
+      "note": "u1→v1 の流量が -1 されて 0 になり, u1-v1 のペアを外して u2-v1 と u1-v2 に組み替えた. 流出量は 2."
+    },
+    {
+      "at": 8400,
+      "stage": "network",
+      "flows": {
+        "su1": 1,
+        "su2": 1,
+        "m2": 1,
+        "m3": 1,
+        "w1t": 1,
+        "w2t": 1
+      },
+      "matching": [
+        "m3",
+        "m2"
+      ],
+      "path": [
+        [
+          "s",
+          "u3"
+        ],
+        [
+          "u3",
+          "w3"
+        ],
+        [
+          "w3",
+          "t"
+        ]
+      ],
+      "codeLines": [
+        7
+      ],
+      "label": "増加パス s → u3 → v3 → t (δ = 1)",
+      "note": "u3 は v2 と v3 に辺をもつ. v2 は使用済みなので, 空いている v3 への増加パスが見つかる."
+    },
+    {
+      "at": 9800,
+      "stage": "network",
+      "flows": {
+        "su1": 1,
+        "su2": 1,
+        "su3": 1,
+        "m2": 1,
+        "m3": 1,
+        "m5": 1,
+        "w1t": 1,
+        "w2t": 1,
+        "w3t": 1
+      },
+      "matching": [
+        "m3",
+        "m2",
+        "m5"
+      ],
+      "codeLines": [
+        8
+      ],
+      "label": "最大マッチング: 大きさ 3 = 最大流の値",
+      "note": "s から出る辺がすべて飽和し, もう増加パスはない. 増加パス法の整数性から流れは整数値なので, 流量 1 の中央の辺 {(u2,v1), (u1,v2), (u3,v3)} をそのまま最大マッチングとして読み取れる."
+    }
+  ]
+}
+  </script>
+  <script>
+    const script=JSON.parse(document.getElementById("framescript").textContent),svg=document.getElementById("view"),code=document.getElementById("code"),label=document.getElementById("label"),note=document.getElementById("note"),play=document.getElementById("play"),restart=document.getElementById("restart"),seek=document.getElementById("seek"),speed=document.getElementById("speed");
+    let startTime=0,elapsedBeforePlay=0,raf=0,playing=false;
+    function el(n){return document.createElementNS("http://www.w3.org/2000/svg",n)}
+    function write(x,y,s,cls){const t=el("text");t.setAttribute("x",x);t.setAttribute("y",y);t.setAttribute("class",cls);t.textContent=s;svg.append(t)}
+    function marker(id,color){const m=el("marker"),p=el("path");m.setAttribute("id",id);m.setAttribute("viewBox","0 0 10 10");m.setAttribute("refX","9");m.setAttribute("refY","5");m.setAttribute("markerWidth","7");m.setAttribute("markerHeight","7");m.setAttribute("orient","auto");p.setAttribute("d","M 0 0 L 10 5 L 0 10 z");p.setAttribute("fill",color);m.append(p);return m}
+    function arrowDefs(){const defs=el("defs");defs.append(marker("arrow","#94a3b8"),marker("arrow-active","#2563eb"));svg.append(defs)}
+    function drawCode(){script.code.forEach((line)=>{const s=document.createElement("span");s.className="line";s.textContent=line;code.append(s)})}
+    function frameIndexAt(ms){let idx=0;script.frames.forEach((f,i)=>{if(f.at<=ms)idx=i});return idx}
+    function highlightCode(f){[...code.children].forEach((line,i)=>line.classList.toggle("active",f.codeLines.includes(i)))}
+    // ---- BEGIN custom render (per-algorithm; must define function render(ms){...}) ----
+const NODES = {
+  s:  {x: 80,  y: 230, src: true},
+  u1: {x: 250, y: 110},
+  u2: {x: 250, y: 230},
+  u3: {x: 250, y: 350},
+  w1: {x: 470, y: 110},
+  w2: {x: 470, y: 230},
+  w3: {x: 470, y: 350},
+  t:  {x: 640, y: 230, src: true}
+};
+const NODE_LABEL = {s: "s", u1: "u1", u2: "u2", u3: "u3", w1: "v1", w2: "v2", w3: "v3", t: "t"};
+const MID_EDGES = [
+  {id: "m1", u: "u1", v: "w1"},
+  {id: "m2", u: "u1", v: "w2"},
+  {id: "m3", u: "u2", v: "w1"},
+  {id: "m4", u: "u3", v: "w2"},
+  {id: "m5", u: "u3", v: "w3"}
+];
+const S_EDGES = [
+  {id: "su1", u: "s", v: "u1"},
+  {id: "su2", u: "s", v: "u2"},
+  {id: "su3", u: "s", v: "u3"}
+];
+const T_EDGES = [
+  {id: "w1t", u: "w1", v: "t"},
+  {id: "w2t", u: "w2", v: "t"},
+  {id: "w3t", u: "w3", v: "t"}
+];
+const R = 20;
+
+function trimmed(pa, pb, cut) {
+  const dx = pb.x - pa.x, dy = pb.y - pa.y;
+  const len = Math.hypot(dx, dy);
+  const ux = dx / len, uy = dy / len;
+  return {
+    x1: pa.x + ux * cut, y1: pa.y + uy * cut,
+    x2: pb.x - ux * cut, y2: pb.y - uy * cut,
+    nx: -uy, ny: ux
+  };
+}
+
+function inPath(f, a, b) {
+  if (!f.path) return false;
+  return f.path.some((p) => p[0] === a && p[1] === b);
+}
+
+function edgeState(f, e) {
+  const flow = f.flows && f.flows[e.id] === 1;
+  const active = inPath(f, e.u, e.v);
+  if (active) return {color: "#2563eb", width: 5, marker: "arrow-active"};
+  if (flow) return {color: "#16a34a", width: 4.5, marker: "arrow-done"};
+  return {color: "#94a3b8", width: 2.5, marker: "arrow"};
+}
+
+function drawArrow(a, b, st) {
+  const t = trimmed(NODES[a], NODES[b], R + 4);
+  const line = el("line");
+  line.setAttribute("x1", t.x1);
+  line.setAttribute("y1", t.y1);
+  line.setAttribute("x2", t.x2);
+  line.setAttribute("y2", t.y2);
+  line.setAttribute("stroke", st.color);
+  line.setAttribute("stroke-width", st.width);
+  line.setAttribute("marker-end", "url(#" + st.marker + ")");
+  svg.append(line);
+}
+
+function drawReverseArrow(a, b) {
+  const t = trimmed(NODES[a], NODES[b], R + 5);
+  const mx = (t.x1 + t.x2) / 2, my = (t.y1 + t.y2) / 2;
+  const cx = mx + t.nx * 24, cy = my + t.ny * 24;
+  const p = el("path");
+  p.setAttribute("d", "M " + t.x1 + " " + t.y1 + " Q " + cx + " " + cy + " " + t.x2 + " " + t.y2);
+  p.setAttribute("fill", "none");
+  p.setAttribute("stroke", "#2563eb");
+  p.setAttribute("stroke-width", "5");
+  p.setAttribute("stroke-dasharray", "8 5");
+  p.setAttribute("marker-end", "url(#arrow-active)");
+  svg.append(p);
+  const txt = el("text");
+  txt.setAttribute("x", 0.25 * t.x1 + 0.5 * cx + 0.25 * t.x2 + t.nx * 15);
+  txt.setAttribute("y", 0.25 * t.y1 + 0.5 * cy + 0.25 * t.y2 + t.ny * 15 + 4);
+  txt.setAttribute("text-anchor", "middle");
+  txt.setAttribute("font-size", "12");
+  txt.setAttribute("font-weight", "700");
+  txt.setAttribute("fill", "#2563eb");
+  txt.textContent = "逆向き辺";
+  svg.append(txt);
+}
+
+function capLabel(a, b, text, dx, dy) {
+  const pa = NODES[a], pb = NODES[b];
+  const t = el("text");
+  t.setAttribute("x", (pa.x + pb.x) / 2 + dx);
+  t.setAttribute("y", (pa.y + pb.y) / 2 + dy);
+  t.setAttribute("text-anchor", "middle");
+  t.setAttribute("font-size", "12");
+  t.setAttribute("font-weight", "700");
+  t.setAttribute("fill", "#64748b");
+  t.textContent = text;
+  svg.append(t);
+}
+
+function drawNode(v) {
+  const p = NODES[v];
+  const circle = el("circle");
+  circle.setAttribute("cx", p.x);
+  circle.setAttribute("cy", p.y);
+  circle.setAttribute("r", R);
+  circle.setAttribute("fill", p.src ? "#dbeafe" : "#ffffff");
+  circle.setAttribute("stroke", p.src ? "#2563eb" : "#94a3b8");
+  circle.setAttribute("stroke-width", "3");
+  svg.append(circle);
+  const t = el("text");
+  t.setAttribute("x", p.x);
+  t.setAttribute("y", p.y + 5);
+  t.setAttribute("text-anchor", "middle");
+  t.setAttribute("font-size", "14");
+  t.setAttribute("font-weight", "700");
+  t.textContent = NODE_LABEL[v];
+  svg.append(t);
+}
+
+function render(ms) {
+  const f = script.frames[frameIndexAt(ms)];
+  svg.innerHTML = "";
+  const defs = el("defs");
+  defs.append(
+    marker("arrow", "#94a3b8"),
+    marker("arrow-active", "#2563eb"),
+    marker("arrow-done", "#16a34a")
+  );
+  svg.append(defs);
+
+  if (f.stage === "graph") {
+    MID_EDGES.forEach((e) => {
+      const matched = f.matching && f.matching.indexOf(e.id) >= 0;
+      const pa = NODES[e.u], pb = NODES[e.v];
+      const line = el("line");
+      line.setAttribute("x1", pa.x);
+      line.setAttribute("y1", pa.y);
+      line.setAttribute("x2", pb.x);
+      line.setAttribute("y2", pb.y);
+      line.setAttribute("stroke", matched ? "#2563eb" : "#94a3b8");
+      line.setAttribute("stroke-width", matched ? 5 : 2.5);
+      svg.append(line);
+    });
+    ["u1", "u2", "u3", "w1", "w2", "w3"].forEach(drawNode);
+    write(250, 60, "U", "formula");
+    write(470, 60, "V", "formula");
+  } else {
+    S_EDGES.concat(MID_EDGES, T_EDGES).forEach((e) => {
+      drawArrow(e.u, e.v, edgeState(f, e));
+    });
+    if (f.path) {
+      f.path.forEach((p) => {
+        const forward = S_EDGES.concat(MID_EDGES, T_EDGES)
+          .some((e) => e.u === p[0] && e.v === p[1]);
+        if (!forward) drawReverseArrow(p[0], p[1]);
+      });
+    }
+    capLabel("s", "u1", "1", -12, -12);
+    capLabel("s", "u2", "1", 0, -10);
+    capLabel("s", "u3", "1", -12, 18);
+    capLabel("w1", "t", "1", 12, -12);
+    capLabel("w2", "t", "1", 0, -10);
+    capLabel("w3", "t", "1", 12, 18);
+    capLabel("u1", "w1", "∞", 0, -10);
+    capLabel("u3", "w3", "∞", 0, 20);
+    Object.keys(NODES).forEach(drawNode);
+    write(360, 34, "s→U, V→t は容量 1 / U→V は容量 ∞", "rowlabel");
+  }
+
+  label.textContent = f.label;
+  note.textContent = f.note;
+  highlightCode(f);
+  seek.value = ms;
+}
+    // ---- END custom render ----
+    function tick(now){const ms=Math.min((now-startTime)*Number(speed.value)+elapsedBeforePlay,script.durationMs);render(ms);if(ms>=script.durationMs){playing=false;play.textContent="再生";return}raf=requestAnimationFrame(tick)}
+    function start(){if(playing)return;playing=true;play.textContent="一時停止";startTime=performance.now();raf=requestAnimationFrame(tick)}
+    function pause(){playing=false;play.textContent="再生";cancelAnimationFrame(raf);elapsedBeforePlay=Number(seek.value)}
+    play.addEventListener("click",()=>playing?pause():start());
+    restart.addEventListener("click",()=>{pause();elapsedBeforePlay=0;render(0)});
+    seek.addEventListener("input",()=>{elapsedBeforePlay=Number(seek.value);render(elapsedBeforePlay);if(playing)startTime=performance.now()});
+    speed.addEventListener("change",()=>{if(playing){elapsedBeforePlay=Number(seek.value);startTime=performance.now()}});
+    drawCode();render(0);
+  </script>
+</body>
+</html>

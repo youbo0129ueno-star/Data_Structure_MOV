@@ -240,6 +240,7 @@
         <span class="pill">ch10 2本</span>
         <span class="pill">ch11 2本</span>
         <span class="pill">ch12 3本</span>
+        <span class="pill">ch13 2本</span>
       </div>
     </header>
 
@@ -652,6 +653,29 @@
           <span class="item-title">弾性マッチング</span>
           <p class="item-desc">独自の系列 A=(1,3,5), B=(2,3,6) とコスト c(i,j)=|A[i]-B[j]| に対し, 境界条件から始めて D[i,j]=min(D[i-1,j-1],D[i-1,j],D[i,j-1])+c(i,j) でDP表を埋める様子を追う.</p>
           <span class="path">pages/ch12-elastic-matching.html</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="chapter" aria-labelledby="ch13-title">
+      <div class="chapter-head">
+        <h2 id="ch13-title">ch13: 最大流</h2>
+        <p class="chapter-note">増加パス法による最大流の計算と, 2部グラフの最大マッチング問題の最大流問題への帰着を確認する.</p>
+      </div>
+
+      <div class="grid">
+        <a class="item accent-green" href="pages/ch13-max-flow.html">
+          <span class="tag">Flow</span>
+          <span class="item-title">増加パス法 (Maximum-Flow)</span>
+          <p class="item-desc">講義資料の6頂点ネットワーク (流出量3の流れ) に対し, 補助グラフの構成 → 増加パスの探索 → δ=min{余裕} の流し込みを繰り返し, 増加パスが消えた時点で X={s,v3} が最小カット (cap(X)=5=最大流) になることを追う.</p>
+          <span class="path">pages/ch13-max-flow.html</span>
+        </a>
+
+        <a class="item accent-orange" href="pages/ch13-bipartite-matching.html">
+          <span class="tag">Matching</span>
+          <span class="item-title">2部グラフの最大マッチング</span>
+          <p class="item-desc">独自の2部グラフ (U,V 各3頂点) に s, t と容量 1/∞ の辺を足して最大流問題に帰着し, 使用済み相手を逆向き辺で付け替える増加パスを経て大きさ3の最大マッチングを得る様子を追う.</p>
+          <span class="path">pages/ch13-bipartite-matching.html</span>
         </a>
       </div>
     </section>
